@@ -11,7 +11,7 @@
             </p>
             <p class="i-theme">
               主题：都为直播室互动
-              <span class="t-btn" @click="editShow = true;">
+              <span class="t-btn" @click="setEditShow">
                 <svg class="icon b-edit" aria-hidden="true">
                   <use xlink:href="#icon-edit"></use>
                 </svg>
@@ -29,7 +29,7 @@
     </header>
     <tab
     :line-width="3"
-    custom-bar-width="117px"
+    custom-bar-width="NaNrem"
     active-color="#ee5050"
     defaultColor="#444"
     bar-active-color="#ee5050"
@@ -54,18 +54,13 @@
         <msg-manager :type="'customer'"></msg-manager>
       </swiper-item>
     </swiper>
-    <flexbox class="footer vux-1px-t">
+    <flexbox class="footer vux-NaNrem-t">
       <flexbox-item :span="85/100">
         <x-button 
         class="f-btn-edit" 
         plain
         >
-          <svg class="icon e-icon" aria-hidden="true">
-              <use xlink:href="#icon-shuru"></use>
-          </svg>
-          <span>
-            说说你的想法…
-          </span>
+          <input-placeholder></input-placeholder>
         </x-button>
       </flexbox-item>
       <flexbox-item :span="15/100">
@@ -78,46 +73,22 @@
         </x-button>
       </flexbox-item>
     </flexbox>
-    <div v-transfer-dom>
-      <popup v-model="editShow">
-        <group :title="'编辑内容'" class="edit-theme-group">
-          <div class="edit-theme-group-textarea">
-            <x-textarea 
-            :height="100"
-            :max="1000"
-            ></x-textarea>
-            <div>
-              <div class="e-t-g-t-footer">
-                <div class="e-t-g-t-f-count">0/1000</div>
-                <div class="e-t-g-t-f-group">
-                  <div class="e-t-g-t-f-g-smile">
-                    <x-button
-                      class="f-g-b-emoji"
-                      plain>
-                        <svg class="icon e-xiaolian" aria-hidden="true">
-                            <use xlink:href="#icon-xiaolian"></use>
-                        </svg>
-                      </x-button>
-                  </div>
-                  <div class="e-t-g-t-f-g-send">
-                    <x-button
-                    class="f-g-b-send"
-                    plain>
-                      发送
-                    </x-button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </group>
-      </popup>
-    </div>
+    <textarea-group
+    :max="editMax"
+    :editShow="editShow"
+    @setEditShow="setEditShow"
+    v-model="editValue"
+    :title="'编辑今日主题'"
+    :smile='false'
+    ></textarea-group>
   </div>
 </template>
 
 <script>
 import MsgManager from '@/components/Msg-Manager.vue'
+import InputPlaceholder from '@/components/InputPlaceholder.vue'
+import TextareaGroup from '@/components/TextareaGroup.vue'
+
 import { 
   Sticky, 
   XHeader, 
@@ -131,16 +102,13 @@ import {
   Flexbox,
   FlexboxItem,
   Popup,
-  TransferDom,
   XTextarea 
   } from 'vux'
 
 const list = () => ['直播观点', '互动交流']
 
 export default {
-  directives: {
-    TransferDom
-  },
+ 
   components: {
     Sticky,
     XHeader,
@@ -156,6 +124,8 @@ export default {
     Popup,
     XTextarea,
     'msg-manager': MsgManager,
+    'input-placeholder':InputPlaceholder,
+    'textarea-group': TextareaGroup
   },
   data () {
     return {
@@ -168,6 +138,17 @@ export default {
       index: 0,
       list: list(),
       editShow: false,
+      editMax: 1000,
+      editValue: '',
+      editLength: 0,
+    }
+  },
+  computed: {
+    
+  },
+  methods: {
+    setEditShow() {
+      this.editShow = !this.editShow;
     }
   }
 }
@@ -218,7 +199,7 @@ export default {
     height: 1.44rem;
     border-radius: 50%;
     background: #fff;
-    border: 2px solid #34343F;
+    border: NaNrem solid #34343F;
 }
 
 .h-info {
@@ -248,12 +229,12 @@ export default {
   box-sizing: border-box;
 
   .f-btn-edit {
-    border-radius: 100px;
+    border-radius: NaNrem;
     border: none;
     background: #F5F5F5;
     text-align: left;
     color: #999999;
-    font-size: 14px ;
+    font-size: NaNrem ;
   }
 
   .f-btn-emoji {
@@ -264,13 +245,6 @@ export default {
   }
 
 }
-
-.e-icon {
-  /* 通过设置 font-size 来改变图标大小 */
-  width: .4rem; height: .4rem;
-  color: #999999;
-}
-
 
 .e-xiaolian {
     /* 通过设置 font-size 来改变图标大小 */
@@ -292,9 +266,21 @@ export default {
       background: #EEEEEE;
     }
 
+    .e-t-g-t-con {
+      background: #fff;
+      padding: .266667rem;
+    }
+
     .e-t-g-t-footer {
       display: flex;
       justify-content: space-between;
+      padding: .266667rem;
+    }
+
+    .e-t-g-t-f-count {
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
     .e-t-g-t-f-group {
@@ -315,11 +301,18 @@ export default {
         line-height: .8rem;
         color: #fff;
         height: .8rem;
-        width: 2.666667rem; 
+        width: 2rem; 
         box-sizing: border-box;
       }
+      
     }
-}
+    .e-t-g-t-g-placeholder {
+      position: absolute;
+      top: .266667rem;
+      left: .533333rem;
+      pointer-events: none;
+    }
+  }
 
 .weui-cell {
   padding: 0 !important;
