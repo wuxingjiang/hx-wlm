@@ -23,14 +23,7 @@
       },
       eventBlur() {
         console.log(this.$el);
-        const dom = this.$el;
-        if(window.getSelection) {
-          console.log(window.getSelection().getRangeAt(0))
-          const range = window.getSelection().getRangeAt(0);
-          const newNode = document.createElement('p');
-          newNode.appendChild(document.createTextNode("New Node Inserted Here"));
-          range.insertNode(newNode);
-        }
+        this.$emit('recodeRange')
       }
     }
   }

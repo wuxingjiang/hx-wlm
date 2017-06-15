@@ -154,7 +154,7 @@ export default {
       editThemeValue: '',
       editSpeakShow: false,
       editSpeakMax: 20,
-      editSpeakValue: '发达撒飒飒飒飒飒飒飒飒',
+      editSpeakValue: ';;;',
       speakPlaceholder: '说说你的想法…'
     }
   },

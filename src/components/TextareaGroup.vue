@@ -15,12 +15,11 @@
               :max="max"
               v-model="editValue"
               ></x-textarea>
-              <div  class="e-t-g-t-c-edit" contenteditable="true"
-                v-html="editValue"
-                @focus="eventFocus"
-                @blur="eventBlur"
-                @input="changeText">
-              </div>
+              <wu-edit  class="e-t-g-t-c-edit" contenteditable="true"
+                v-model="editValue"
+                @recodeRange="recodeRange"
+               >
+              </wu-edit>
             </div>
           <div>
           <div class="e-t-g-t-footer">
@@ -70,7 +69,7 @@
                 :key="emoji"
                 :span="1/8"
                 >
-                  <emotion is-gif @click.native="eventChose(emoji)">{{emoji}}</emotion>
+                  <emotion is-gif @click.native="eventChose">{{emoji}}</emotion>
                 </flexbox-item>
                 <flexbox-item>
                   <svg class="icon e-xiaolian" aria-hidden="true">
@@ -96,7 +95,6 @@
 import InputCount from '@/components/InputCount.vue'
 import InputPlaceholder from '@/components/InputPlaceholder.vue'
 import wuEdit from '@/components/wuEdit.vue'
-
 import { 
   Group,
   XButton,
@@ -131,12 +129,11 @@ export default {
     FlexboxItem,
     'input-count': InputCount,
     'input-placeholder':InputPlaceholder,
-    'wu-edit': wuEdit
+    'wu-edit': wuEdit,
   },
   data() {
     return {
       msg: 'TextAreaGroup',
-      editLength:'',
       editValue: this.value,
       emoji: ['微笑', '撇嘴', '色', '发呆', '得意', '流泪', '害羞', '闭嘴', '睡', '大哭', '尴尬', '发怒', '调皮', '呲牙', '惊讶', '难过', '酷', '冷汗', '抓狂', '吐', '偷笑', '可爱', '白眼', '傲慢', '饥饿', '困', '惊恐', '流汗', '憨笑', '大兵', '奋斗', '咒骂', '疑问', '嘘', '晕', '折磨', '衰', '骷髅', '敲打', '再见', '擦汗', '抠鼻', '鼓掌', '糗大了', '坏笑', '左哼哼', '右哼哼', '哈欠', '鄙视', '委屈', '快哭了', '阴险', '亲亲', '吓', '可怜', '菜刀', '西瓜', '啤酒', '篮球', '乒乓', '咖啡', '饭', '猪头', '玫瑰', '凋谢', '示爱', '爱心', '心碎', '蛋糕', '闪电', '炸弹', '刀', '足球', '瓢虫', '便便', '月亮', '太阳', '礼物', '拥抱', '强', '弱', '握手', '胜利', '抱拳', '勾引', '拳头', '差劲', '爱你', 'NO', 'OK', '爱情', '飞吻', '跳跳', '发抖', '怄火', '转圈', '磕头', '回头', '跳绳', '挥手', '激动', '街舞', '献吻', '左太极', '右太极'],
       emojiShow: false,
@@ -167,6 +164,9 @@ export default {
       }
       return arr;
     },
+    editLength() {
+      return this.editValue.length;
+    }
 
   },
   watch: {
@@ -191,7 +191,7 @@ export default {
     eventFocus() {
       console.log('get focus')
     },
-    eventBlur() {
+    recodeRange() {
       if(window.getSelection) {
         const range = window.getSelection().getRangeAt(0);
         
@@ -200,13 +200,14 @@ export default {
       }
     },
     eventChose(e) {
-      console.log(e);
-      this.rangeInser(e)
+      console.log(e.target.src)
+      this.rangeInser(e.target.src)
     },
-    rangeInser(node) {
+    rangeInser(src) {
       if(this.range) {
-        const newNode = document.createElement('p');
-        newNode.appendChild(document.createTextNode(`${node}`));
+        const newNode = document.createElement('img');
+        newNode.src = src
+        newNode.className = 'emoji-img'
         this.range.insertNode(newNode);
       }  
     }
@@ -234,6 +235,10 @@ export default {
     overflow: auto;
     .e-t-g-t-c-edit {
       height: 100px;
+      .emoji-img {
+        vertical-align: middle;
+        margin: 0 .133333rem;
+      }
     }
   }
 
