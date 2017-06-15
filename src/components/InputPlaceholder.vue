@@ -4,13 +4,14 @@
         <use xlink:href="#icon-shuru"></use>
     </svg>
     <span>
-    说说你的想法…
+      {{placeholder}}
     </span>
   </div>
 </template>
 <script>
 export default {
   name: 'InputPlaceholder',
+  props:['placeholder'],
   data() {
     return {
       msg: 'InputPlaceholder'
@@ -21,9 +22,10 @@ export default {
 <style lang="less">
 .InputPlaceholder {
   color: #999;
+  font-size: 14px;
     .e-icon {
     /* 通过设置 font-size 来改变图标大小 */
-    width: .466667rem; height: .466667rem;
+    width: .4rem; height: .4rem;
     color: #999999;
   }
 }

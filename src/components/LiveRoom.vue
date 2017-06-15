@@ -10,8 +10,8 @@
               都问（神仙看盘）
             </p>
             <p class="i-theme">
-              主题：都为直播室互动
-              <span class="t-btn" @click="setEditShow">
+              <span class="t-text">主题：都为直2播11室1111111互动主题：都为直播室互动</span>
+              <span class="t-btn" @click="setEditThemeShow">
                 <svg class="icon b-edit" aria-hidden="true">
                   <use xlink:href="#icon-edit"></use>
                 </svg>
@@ -28,8 +28,8 @@
         </div>
     </header>
     <tab
-    :line-width="3"
-    custom-bar-width="NaNrem"
+    :line-width="2"
+    custom-bar-width="6em"
     active-color="#ee5050"
     defaultColor="#444"
     bar-active-color="#ee5050"
@@ -59,8 +59,10 @@
         <x-button 
         class="f-btn-edit" 
         plain
+        :action-type="'button'"
+        @click.native="setEditSpeakShow"
         >
-          <input-placeholder></input-placeholder>
+          <input-placeholder :placeholder="speakPlaceholder"></input-placeholder>
         </x-button>
       </flexbox-item>
       <flexbox-item :span="15/100">
@@ -74,12 +76,22 @@
       </flexbox-item>
     </flexbox>
     <textarea-group
-    :max="editMax"
-    :editShow="editShow"
-    @setEditShow="setEditShow"
-    v-model="editValue"
+    :max="editThemeMax"
+    :placeholder="'请输入今日主题'"
+    :editShow="editThemeShow"
+    @setEditShow="setEditThemeShow"
+    v-model="editThemeValue"
     :title="'编辑今日主题'"
-    :smile='false'
+    :type="'textArea'"
+    ></textarea-group>
+    <textarea-group
+    :max="editSpeakMax"
+    :placeholder="speakPlaceholder"
+    :editShow="editSpeakShow"
+    @setEditShow="setEditSpeakShow"
+    v-model="editSpeakValue"
+    :title="'编辑内容'"
+    :type="'wuEdit'"
     ></textarea-group>
   </div>
 </template>
@@ -137,18 +149,25 @@ export default {
       defaultSelected: '直播观点',
       index: 0,
       list: list(),
-      editShow: false,
-      editMax: 1000,
-      editValue: '',
-      editLength: 0,
+      editThemeShow: false,
+      editThemeMax: 20,
+      editThemeValue: '',
+      editSpeakShow: false,
+      editSpeakMax: 20,
+      editSpeakValue: '发达撒飒飒飒飒飒飒飒飒',
+      speakPlaceholder: '说说你的想法…'
     }
   },
   computed: {
     
   },
   methods: {
-    setEditShow() {
-      this.editShow = !this.editShow;
+    setEditThemeShow() {
+      this.editThemeShow = !this.editThemeShow;
+    },
+    setEditSpeakShow() {
+      this.editSpeakShow = !this.editSpeakShow;
+      console.log('lalal')
     }
   }
 }
@@ -199,11 +218,26 @@ export default {
     height: 1.44rem;
     border-radius: 50%;
     background: #fff;
-    border: NaNrem solid #34343F;
+    border: 2px solid #34343F;
 }
 
 .h-info {
   flex: 1;
+  padding-left: .266667rem;
+  .i-theme {
+    display: flex;
+  }
+  .t-text{
+    width: 100px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    text-overflow:ellipsis;
+    white-space: nowrap;
+  }
+  .t-btn {
+    padding-left: .266667rem; 
+  }
 }
 
 .h-like {
@@ -229,12 +263,12 @@ export default {
   box-sizing: border-box;
 
   .f-btn-edit {
-    border-radius: NaNrem;
+    border-radius: 1.333333rem;
     border: none;
     background: #F5F5F5;
     text-align: left;
     color: #999999;
-    font-size: NaNrem ;
+    font-size: 14px ;
   }
 
   .f-btn-emoji {
@@ -258,61 +292,6 @@ export default {
   padding: .4rem 0;
 }
   
-
-.edit-theme-group {
-    text-align: center;
-    .edit-theme-group-textarea {
-      padding: 0 .266667rem;
-      background: #EEEEEE;
-    }
-
-    .e-t-g-t-con {
-      background: #fff;
-      padding: .266667rem;
-    }
-
-    .e-t-g-t-footer {
-      display: flex;
-      justify-content: space-between;
-      padding: .266667rem;
-    }
-
-    .e-t-g-t-f-count {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .e-t-g-t-f-group {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      button {
-        border: none;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-
-      .f-g-b-send {
-        background: red;
-        border-radius: 100px;
-        // padding: .213333rem .533333rem;
-        line-height: .8rem;
-        color: #fff;
-        height: .8rem;
-        width: 2rem; 
-        box-sizing: border-box;
-      }
-      
-    }
-    .e-t-g-t-g-placeholder {
-      position: absolute;
-      top: .266667rem;
-      left: .533333rem;
-      pointer-events: none;
-    }
-  }
 
 .weui-cell {
   padding: 0 !important;
