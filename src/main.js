@@ -4,18 +4,11 @@ import Vue from 'vue'
 import FastClick from 'fastclick'
 import router from './router'
 import App from './App'
-// import Home from './components/HelloFromVux'
+import VueResource from 'vue-resource'
+import { AlertPlugin  } from 'vux'
 
-
-
-// const routes = [{
-//   path: '/',
-//   component: Home
-// }]
-
-// const router = new VueRouter({
-//   routes
-// })
+Vue.use(VueResource)
+Vue.use(AlertPlugin)
 
 FastClick.attach(document.body)
 
