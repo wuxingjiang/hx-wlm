@@ -78,9 +78,11 @@ export default {
       const timeStr = obj.messageTime;
       obj.formatTime = this.splitTime(timeStr, 'MM-DD hh:mm:ss');
       const TEACHERSPEAK=['t_s'];
-      const TEACHERANSWER = ['t_rol','t_ror'];
-      const CUSTOMER = ['u_s'];
-      const SYSTEM = ['topic'];
+      const TEACHERANSWER = ['t_rol', 't_ror', 't_rp', 't_ro', 'ta_ror', 'ta_rol', 'ta_rp', 'ta_ro', 'ta_s'];
+      const CUSTOMER = ['u_s', 'u_r', 'u_a'];
+      const HXSERVICE = ['cs_s', 'cs_ro'];
+      const HOST = ['zc_s', 'zc_rp', 'zc_ro', 'zc_rol', 'zc_ror']
+      const SYSTEM = ['topic', 'ad_robot_room', 'ad_robot_all', 'room_sys_msg', 'gift', 'announcement', 'speak_policy'];
       if(typeof(obj.body) !== 'undefined') {
         obj.cbody = this.bbcode(obj.body)
       }
@@ -101,8 +103,9 @@ export default {
         
       } else if (SYSTEM.indexOf(obj.type) != -1) {
         obj.class = 'system';
-        obj.cbody = obj.value;
+        obj.cbody = obj.value || obj.cbody;
         obj.level = '系统消息';
+        obj.userImage = require('@/assets/system.png')
       }
       
       if(typeof (obj.originalMessage)!='undefined') {
@@ -151,6 +154,7 @@ export default {
 </script>
 <style lang="less">
 .Msg-Manager {
+  padding: .266667rem 0;
   .l-container {
     display: flex;
     justify-content: flex-start;
@@ -166,7 +170,7 @@ export default {
     display: flex;
     justify-content: center;
     img {
-      background: red;
+      background: #fff;
       height: 1.066667rem;
       width: 1.066667rem;
       border-radius: 50%;
@@ -202,7 +206,7 @@ export default {
     padding: .24rem;
     border-radius: 5px;
     position: relative;
-    
+    word-wrap: break-word;
     .m-c-opera {
       display: flex;
       justify-content: flex-end;
