@@ -1,9 +1,6 @@
 <template>
-  <div id="wuEdit" class="wuEdit" contenteditable="true"
-    v-html="innerText"
-    @focus="eventFocus"
-    @blur="eventBlur"
-    @input="changeText">
+  <div id="wuEdit" class="wuEdit" >
+    <div id="editor-trigger" ></div>
   </div>
 </template>
 <script>
@@ -11,7 +8,10 @@
     name: 'wuEdit',
     props: ['value'],
     data(){
-        return {innerText:this.value}
+        return {
+          innerText:this.value,
+          editor: '',
+          }
     },
     methods:{
       changeText(){
@@ -25,6 +25,12 @@
         console.log(this.$el);
         this.$emit('recodeRange')
       }
+    },
+    mounted() {
+      // console.log('dd')
+      var quill = new Quill('#editor-trigger', {
+      theme: 'bubble'
+      });
     }
   }
 </script>

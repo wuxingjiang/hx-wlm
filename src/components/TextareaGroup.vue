@@ -15,14 +15,12 @@
               :max="max"
               v-model="editValue"
               ></x-textarea>
-              <div   
-              class="e-t-g-t-c-edit" 
-              contenteditable="true"
+              <div
+              id="editor-trigger"
+              class="e-t-g-t-c-edit"
               v-if="type === 'wuEdit'"
-              v-html="editValue"
-              @focus="eventFocus"
-              @blur="eventBlur"
-              @input="changeText">
+              v-model = "editValue"
+              >
               </div>
             </div>
           <div>
@@ -70,14 +68,14 @@
                align="center">
                 <flexbox-item
                 class="emoji-list"
-                v-for="emoji in item"
-                :key="emoji"
+                v-for="(emoji,i) in item"
+                :key="i"
                 :span="1/8"
                 >
-                  <emotion is-gif @click.native="eventChose(emoji)">{{emoji}}</emotion>
+                  <img @click="eventChose(i+1)" :src="`http://imgzq.hexun.com/chatRoom/static/ff/${i+1}.png`" alt="">
                 </flexbox-item>
-                <flexbox-item>
-                  <svg class="icon e-xiaolian" aria-hidden="true">
+                <flexbox-item v-if="needDel">
+                  <svg @click="delText" class="icon e-xiaolian" aria-hidden="true">
                       <use xlink:href="#icon-xiaolian"></use>
                   </svg>
                 </flexbox-item>
@@ -100,7 +98,6 @@
 import InputCount from '@/components/InputCount.vue'
 import InputPlaceholder from '@/components/InputPlaceholder.vue'
 import wuEdit from '@/components/wuEdit.vue'
-
 import { 
   Group,
   XButton,
@@ -142,14 +139,14 @@ export default {
       msg: 'TextAreaGroup',
       editLength:'',
       editValue: this.value,
-      emoji: ['微笑', '撇嘴', '色', '发呆', '得意', '流泪', '害羞', '闭嘴', '睡', '大哭', '尴尬', '发怒', '调皮', '呲牙', '惊讶', '难过', '酷', '冷汗', '抓狂', '吐', '偷笑', '可爱', '白眼', '傲慢', '饥饿', '困', '惊恐', '流汗', '憨笑', '大兵', '奋斗', '咒骂', '疑问', '嘘', '晕', '折磨', '衰', '骷髅', '敲打', '再见', '擦汗', '抠鼻', '鼓掌', '糗大了', '坏笑', '左哼哼', '右哼哼', '哈欠', '鄙视', '委屈', '快哭了', '阴险', '亲亲', '吓', '可怜', '菜刀', '西瓜', '啤酒', '篮球', '乒乓', '咖啡', '饭', '猪头', '玫瑰', '凋谢', '示爱', '爱心', '心碎', '蛋糕', '闪电', '炸弹', '刀', '足球', '瓢虫', '便便', '月亮', '太阳', '礼物', '拥抱', '强', '弱', '握手', '胜利', '抱拳', '勾引', '拳头', '差劲', '爱你', 'NO', 'OK', '爱情', '飞吻', '跳跳', '发抖', '怄火', '转圈', '磕头', '回头', '跳绳', '挥手', '激动', '街舞', '献吻', '左太极', '右太极'],
       emojiShow: false,
-      range: '',
+      quill: '',
+      needDel: '', // emoji是否需要删除
     }
   },
   computed: {
     placeholderShow() {
-      return !this.editValue;
+      return !this.editLength;
     },
     issend() {
       return !!this.editValue.trim();
@@ -161,11 +158,11 @@ export default {
       return !this.editLength;
     },
     emojiArr() {
-      let emoji = this.emoji;
+      let emoji = new Array(64);
       let len = emoji.length;
-      let gap = 23;
+      let gap = 24;
       const arr = []
-      for(let i = 0; i <= len; i+= 23) {
+      for(let i = 0; i <= len; i+= gap) {
         console.log(i);
         arr.push(emoji.slice(i, i + gap))
       }
@@ -176,8 +173,15 @@ export default {
   watch: {
     editValue(val) {
       const len = val.length;
-      this.editLength = len;
+      if(this.type === 'textArea') {
+        this.editLength = len;
+      }
       this.$emit('input', val)
+    },
+    editLength(val) {
+      if(val == '0') {
+        console.log('dd')
+      }
     }
   },
   methods: {
@@ -195,25 +199,61 @@ export default {
     eventFocus() {
       console.log('get focus')
     },
-    eventBlur() {
-      if(window.getSelection) {
-        const range = window.getSelection().getRangeAt(0);
-        const newNode = document.createElement('p');
-        this.range = window.getSelection().getRangeAt(0)
-        
+    delText() {
+      const range = this.quill.getSelection()
+      let index = 0;
+      if(range) {
+        index = range.index
       }
+      console.log(index)
+      this.quill.deleteText(index, 1);
+      console.log('del')
     },
     eventChose(e) {
-      console.log(e);
-    },
-    rangeInser(node) {
-      newNode.appendChild(document.createTextNode("New Node Inserted Here"));
-        range.insertNode(newNode);
+      console.log(this.quill);
+      const range = this.quill.getSelection()
+      let index = 0;
+      if(range) {
+        index = range.index
+      }
+      // range.collapse(true);
+      console.log(index)
+      this.quill.insertEmbed(index, 'image', `http://imgzq.hexun.com/chatRoom/static/ff/${e}.gif`);
+      if(range) {
+        this.quill.setSelection(index + 1, range.length)
+      }
+      
     },
   // 发送按钮
     eventSend() {
       this.$emit('sendBtnMethod');
     }
+  },
+   mounted() {
+      // console.log('dd')
+    this.quill = new Quill('#editor-trigger', {
+      theme: 'bubble'
+    });
+    this.quill.on('text-change', (delta, oldDelta, source) => {
+      const ops = this.quill.getContents().ops;
+      const range = this.quill.getSelection();
+      let str = '';
+      let len = 0
+      // console.log( this.quill.getContents())
+      for(let i in ops) {
+        // console.log(typeof ops[i].insert === 'string')
+       if(typeof ops[i].insert === 'string') {
+        //  console.log('str')
+         str += ops[i].insert;
+         len += ops[i].insert.trim().length
+       } else if(typeof ops[i].insert === 'object')  {
+        str+=`[face]${ops[i].insert.image}[/face]`;
+        len++
+       }
+      }
+      this.editValue = str;
+      this.editLength = len;
+    });
   }
 }
 </script>
@@ -238,6 +278,7 @@ export default {
     overflow: auto;
     .e-t-g-t-c-edit {
       height: 100px;
+      text-align: left;
     }
   }
 
@@ -295,6 +336,7 @@ export default {
       display: flex;
       justify-content: center;
       align-item: 'center';
+      padding: .266667rem 0;
     }
   }
 }

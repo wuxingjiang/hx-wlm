@@ -49,18 +49,31 @@
     :show-dots="false"
     height="100%">
       <swiper-item class="c-item" v-for="(item, index) in list" :key="index">
-        <msg-manager
-        v-for="(msg, num) in leftMsg"
-        v-if="item === '直播观点'"
-        :info="msg"
-        :key = "msg.type + num"
-        ></msg-manager>
-        <msg-manager
-        v-for="(msg, num) in rightMsg"
-        v-if="item === '互动交流'"
-        :info="msg"
-        :key = "msg.type + num"
-        ></msg-manager>
+        <scroller
+        :ref = "`scroller${index}`"
+        lock-x
+        v-model="pullStatus"
+        :use-pulldown="index === 0 && !noMore? true : false"
+        :pulldown-config="pulldownConfig"
+        @on-pulldown-loading="getHistoryMsg">
+          <div>
+            <divider v-if="index == '0' && noMore">没有更多数据</divider>
+            <msg-manager
+            v-for="(msg, num) in leftMsg"
+            v-if="item === '直播观点'"
+            :info="msg"
+            :key = "msg.type + num"
+            ></msg-manager>
+            <msg-manager
+            v-for="(msg, num) in rightMsg"
+            v-if="item === '互动交流'"
+            :info="msg"
+            :key = "msg.type + num"
+            ></msg-manager>
+          </div>
+        </scroller>
+        
+        
       </swiper-item>
     </swiper>
     <flexbox class="footer vux-NaNrem-t">
@@ -99,10 +112,14 @@
     :placeholder="speakPlaceholder"
     :editShow="editSpeakShow"
     @setEditShow="setEditSpeakShow"
+    @sendBtnMethod="sendMessage"
     v-model="editSpeakValue"
     :title="'编辑内容'"
     :type="'wuEdit'"
     ></textarea-group>
+    <div v-transfer-dom >
+      <x-dialog v-model = "isBlack" :dialog-style="{padding:'40px 20px'}">{{dialogText}}</x-dialog>
+    </div>
   </div>
 </template>
 
@@ -126,7 +143,11 @@ import {
   FlexboxItem,
   Popup,
   XTextarea,
+  Scroller,
   AjaxPlugin,
+  Divider,
+  XDialog,
+  TransferDom
   } from 'vux'
 
 const list = () => ['直播观点', '互动交流']
@@ -147,9 +168,16 @@ export default {
     FlexboxItem,
     Popup,
     XTextarea,
+    Scroller,
+    Divider,
+    XDialog,
+    TransferDom,
     'msg-manager': MsgManager,
     'input-placeholder':InputPlaceholder,
     'textarea-group': TextareaGroup
+  },
+  directives: {
+    TransferDom
   },
   data () {
     return {
@@ -165,10 +193,25 @@ export default {
       editThemeMax: 20,
       editThemeValue: '',
       editSpeakShow: false,
-      editSpeakMax: 20,
+      editSpeakMax: 1000,
       editSpeakValue: ';;;',
       likeInfo: '关注', // 关注信息
       speakPlaceholder: '说说你的想法…',
+      pulldownConfig: {
+        content: '下拉加载更多',
+        height: 60,
+        autoRefresh: false,
+        downContent: '下拉加载更多',
+        upContent: '释放加载',
+        loadingContent: '加载中...',
+        clsPrefix: 'xs-plugin-pulldown-'
+      },
+      isBlack: false, // 是否是黑名单用户
+      dialogText: '',
+      noMore: false,
+      pullStatus: {
+        pulldownStatus: 'default'
+      },
       loginInfo: '', // 登录信息
       roomInfo: {
         roomInfo: {
@@ -182,6 +225,7 @@ export default {
         
       ],
       rightMsg: [],
+      historyList:[],
     }
   },
   computed: {
@@ -197,7 +241,8 @@ export default {
           getRightMsg:apidomain+'api/room/get_users_messages',//获取互动交流
           getRoomInfo:apidomain+'api/room/enter_room',//获取互动交流
           getHistoryList:apidomain+'api/room/get_room_history',//获取历史列表
-          setRoomTopic: `${apidomain + 'api/room/management/set_room_topic'}` // 设置主题
+          setRoomTopic: `${apidomain + 'api/room/management/set_room_topic'}`, // 设置主题
+          sendBtnMethod: `${apidomain}/api/room/send_message` // 发送消息
         },
         islogin:'http://reg.tool.hexun.com/wapreg/checklogin.aspx?format=json&encode=utf-8',//判断登陆
         h5logurl: 'https://reg.hexun.com/h5/login.aspx?regtype=5&gourl=' + escape(window.location.href),
@@ -209,18 +254,103 @@ export default {
   },
   methods: {
     setEditThemeShow(val) {
-      console.log('111111');
+      console.log(!this.loginInfo.islogin)
+      if(this.loginInfo.islogin === 'False') {
+        this.checkLogin();
+        return false;
+      }
       this.editThemeShow = val;
     },
     setEditSpeakShow() {
       this.editSpeakShow = !this.editSpeakShow;
     },
+    sendMessage() {
+      console.log('send')
+      const params = {
+        roomId: this.roomId,
+        type: '',
+        from:'pc',
+        contentType:'',
+        topic: '',
+        body: this.editSpeakValue,
+        sendToFree: '',
+        originalMessageId:'',
+        attributes:'',
+      }
+    },
+    // 下拉刷新
+    getHistoryMsg() {
+      
+      const getData = () => {
+        const params = {
+          roomId: this.roomId,
+          date:this.historyList[0]
+        }
+          if(params.date) {
+          this.getLeftMsg(params, callback)
+        } else {
+          setTimeout(() => {
+              this.pullStatus = {
+                pulldownStatus: 'default'
+              }
+              this.$refs[`scroller${this.index}`][0].reset()
+              this.noMore = true;
+            }, 10)
+          
+        }
+      }
+
+      const callback = (data) => {
+        this.historyList.shift();
+        console.log(data)
+        if(data.length > 0) {
+          this.$nextTick(() => {
+            setTimeout(() => {
+              this.$refs[`scroller${this.index}`][0].reset()
+              // this.pullupEnabled && this.$refs.scroller.enablePullup()
+              this.pullStatus = {
+                pulldownStatus: 'default'
+              }
+            }, 10)
+          })
+        } else {
+          getData()
+        }
+     
+      }
+      
+      getData()
+    },
+    //获取历史信息时间列表
+    getHistoryList() {
+      const params = {
+        roomId: this.roomId
+      }
+      return new Promise((resolve, reject) => {
+        this.$http.jsonp(this.interface.api.getHistoryList, {params}).then(
+          res => {
+            if(res.body.resultKey === 'ok') {
+              const _data = res.body.data.roomDailySumList;
+              if(_data.length > 0) {
+                this.historyList = _data.map(({date})=> date.toString().substring(0,8))
+              }
+            };
+            resolve();
+          },
+          errmsg => {
+            console.log('fail')
+          }
+        )
+      })
+      
+ 
+    },
     // 获取直播观点
-    getRightMsg(params = {roomId: this.roomId}) {
+    getRightMsg(params = {roomId: this.roomId}, callback) {
       this.$http.jsonp(this.interface.api.getRightMsg, {params}).then(
         res => {
           if(res.body.resultKey === 'ok') {
-            this.rightMsg = this.rightMsg.concat(res.body.data.messages)
+            this.rightMsg = this.rightMsg.concat(res.body.data.messages);
           }
         },
         errmsg => {
@@ -229,11 +359,14 @@ export default {
       )
     },
     // 获取直播观点
-    getLeftMsg(params = {roomId: this.roomId}) {
+    getLeftMsg(params = {roomId: this.roomId},callback) {
       this.$http.jsonp(this.interface.api.getLeftMsg, {params}).then(
         res => {
           if(res.body.resultKey === 'ok') {
-            this.leftMsg = this.leftMsg.concat(res.body.data.messages)
+            this.leftMsg = res.body.data.messages.concat(this.leftMsg);
+            if(callback && typeof(callback === 'function')) {
+              callback.apply(this, [res.body.data.messages]);
+            }
           }
         },
         errmsg => {
@@ -333,11 +466,27 @@ export default {
         this.$http.jsonp(this.interface.api.getRoomInfo, {params}).then(
           res => {
             if(res.body.resultKey === 'ok') {
-              this.roomInfo = res.body.data;
+              const data = res.body.data
+              this.roomInfo = data;
               resolve();
-              this.getFollowInfo();
+              
             } else {
-              console.log()
+              if(res.body.businessKey=='user_baned'){
+                    //您被该直播室拉黑了
+                    this.isBlack = true;
+                    this.dialogText = res.body.errorMessage
+                    return;
+                }
+                if(res.body.businessKey=='user_not_buy_room'){
+                    //novip
+                    // require(['novip']);
+                    return ;
+                }
+                if(res.body.businessKey=='user_not_login'){
+                    //没登陆
+                    this.checkLogin()
+                    return ;
+                }
             }
           },
           errmsg => {
@@ -345,6 +494,35 @@ export default {
           }
         )
       })
+      
+    },
+    // 时候在App
+    isApp(){
+      const ua = navigator.userAgent.toLowerCase();
+      if(ua.indexOf('hxappid')>0) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    // 是否在微信
+    isWechat() {
+      const ua = navigator.userAgent.toLowerCase();  
+      if(ua.match(/MicroMessenger/i)=="micromessenger") {  
+          return true;  
+      } else {  
+          return false;  
+      }  
+    },
+    // 去登录
+    checkLogin() {
+      if(this.isApp()) {
+        window.javatojs.login();
+      } else if(this.isWechat()) {
+        
+      } else {
+        location.href='https://reg.hexun.com/h5/login.aspx?regtype=5&gourl='+escape(window.location.href)
+      }
       
     },
     init() {
@@ -358,12 +536,21 @@ export default {
   },
   created() {
     // this.init()
+    if(!this.roomId) {
+      this.$vux.alert.show({
+        title: '系统提示',
+        content: '进入房间失败',
+      })
+      return false;
+    };
     const init = Promise.all([this.getloginInfo(),this.getRoomInfo()]).then(
       success => {
+        this.getFollowInfo();
         this.getLeftMsg();
         this.getRightMsg();
-        this.mqttSession.apply(this);
-              }
+        this.getHistoryList();
+        mqttSession.apply(this);
+      }
     )
     
   }
