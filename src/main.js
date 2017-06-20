@@ -5,10 +5,11 @@ import FastClick from 'fastclick'
 import router from './router'
 import App from './App'
 import VueResource from 'vue-resource'
-import { AlertPlugin  } from 'vux'
+import { AlertPlugin, LoadingPlugin } from 'vux'
 
 Vue.use(VueResource)
 Vue.use(AlertPlugin)
+Vue.use(LoadingPlugin)
 
 FastClick.attach(document.body)
 

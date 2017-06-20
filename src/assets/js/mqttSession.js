@@ -13,7 +13,7 @@ export function mqttSession() {
           useSSL:false,  
           //useSSL : true,
           userName : this.loginInfo.userid+'',
-          password : this.roomInfo.userInfo.sessionId,
+          password : this.enterInfo.userInfo.sessionId,
           cleanSession : true,
           onSuccess : onConnect,
           onFailure : OnConnectFailed,
@@ -52,7 +52,7 @@ export function mqttSession() {
       var Mess={
           t_s:function(a){
               //'老师发表直播观点',a.type;
-              console.log('222xxxxx')
+              console.log('老师发表直播观点')
               vm.leftMsg.push(a)
           },
           u_s:function(a){
@@ -180,18 +180,17 @@ export function mqttSession() {
               //红包
           },
           update_room:function(a){
+              console.log('xxxxxxxxxxxxxxxxx',a.field)
               switch (a.field) {
                   case 'announcement':
                       //更新公告
-                      a.value = live.main.filter(a.value);
-                      a.value = live.main.filterImg(a.value);
-                      a.type = 'announcement';
-                      vm.leftMsg.push(a)
+                      
                       break;
                   case 'topic':
                       /*更新主题*/
-                      a.value = a.value.slice(0, 20);
-                      a.type = 'topic';
+                      console.log('更新主题')
+                      vm.enterInfo.roomInfo.topic = a.value;
+                      a.value = `房间主题已变更为:【${a.value}】`
                       vm.leftMsg.push(a)
                       break;
                   case 'speak_policy':
@@ -216,7 +215,7 @@ export function mqttSession() {
     
         try{
           var a = JSON.parse(mqttMsg.payloadString);
-          console.log(a); 
+          console.log(a.type); 
           Mess[a.type](a);
         }catch(e){
             throw new TypeError('script error for message server connect fail');    

@@ -1,16 +1,16 @@
 <template>
   <div class="liveRoom" id="liveRoom">
-    <x-header>{{roomInfo.roomInfo.roomName}}</x-header>
+    <x-header>{{enterInfo.roomInfo.roomName}}</x-header>
     <header class="head">
         <div class="h-img">
-            <img :src="roomInfo.roomInfo.imageUrl" alt="">
+            <img :src="enterInfo.roomInfo.imageUrl" alt="">
         </div>
         <div class="h-info">
             <p class="i-name">
-              {{roomInfo.roomInfo.ownerNick}}
+              {{enterInfo.roomInfo.ownerNick}}
             </p>
             <p class="i-theme">
-              <span class="t-text">主题：{{roomInfo.roomInfo.topic}}</span>
+              <span class="t-text">主题：{{enterInfo.roomInfo.topic}}</span>
               <span class="t-btn" @click="setEditThemeShow(true)">
                 <svg class="icon b-edit" aria-hidden="true">
                   <use xlink:href="#icon-edit"></use>
@@ -51,29 +51,34 @@
       <swiper-item class="c-item" v-for="(item, index) in list" :key="index">
         <scroller
         :ref = "`scroller${index}`"
-        lock-x
         v-model="pullStatus"
+        height="100%"
+        scrollbarY
         :use-pulldown="index === 0 && !noMore? true : false"
         :pulldown-config="pulldownConfig"
         @on-pulldown-loading="getHistoryMsg">
-          <div>
+          <div class="js-msg-container">
             <divider v-if="index == '0' && noMore">没有更多数据</divider>
             <msg-manager
             v-for="(msg, num) in leftMsg"
             v-if="item === '直播观点'"
+            :authority = "authority"
             :info="msg"
-            :key = "msg.type + num"
+            :key="msg.type + num"
+            :type= "item"
             ></msg-manager>
             <msg-manager
+           
             v-for="(msg, num) in rightMsg"
             v-if="item === '互动交流'"
+            :authority = "authority"
             :info="msg"
             :key = "msg.type + num"
+             :type= "item"
+             @answerMethod = 'setChoseAnswershow'
             ></msg-manager>
           </div>
         </scroller>
-        
-        
       </swiper-item>
     </swiper>
     <flexbox class="footer vux-NaNrem-t">
@@ -82,7 +87,7 @@
         class="f-btn-edit" 
         plain
         :action-type="'button'"
-        @click.native="setEditSpeakShow"
+        @click.native="setEditSpeakShow(true)"
         >
           <input-placeholder :placeholder="speakPlaceholder"></input-placeholder>
         </x-button>
@@ -116,9 +121,21 @@
     v-model="editSpeakValue"
     :title="'编辑内容'"
     :type="'wuEdit'"
+    :editType="editType"
     ></textarea-group>
     <div v-transfer-dom >
       <x-dialog v-model = "isBlack" :dialog-style="{padding:'40px 20px'}">{{dialogText}}</x-dialog>
+    </div>
+    <div v-transfer-dom>
+      <popup 
+      v-model="choseAnswershow"
+      is-transparent >
+        <div class="chose-answer-list">
+            <x-button class="c-a-l-btn c-a-l-btn-one" @click.native="eventAnswerOpen">公开回答</x-button>
+            <x-button class="c-a-l-btn c-a-l-btn-two vux-1px-t">私密回答</x-button>   
+            <x-button class="c-a-l-btn c-a-l-btn-three" @click.native="setChoseAnswershow(false)">取消</x-button>
+          </div>
+      </popup>
     </div>
   </div>
 </template>
@@ -194,7 +211,7 @@ export default {
       editThemeValue: '',
       editSpeakShow: false,
       editSpeakMax: 1000,
-      editSpeakValue: ';;;',
+      editSpeakValue: '',
       likeInfo: '关注', // 关注信息
       speakPlaceholder: '说说你的想法…',
       pulldownConfig: {
@@ -206,6 +223,7 @@ export default {
         loadingContent: '加载中...',
         clsPrefix: 'xs-plugin-pulldown-'
       },
+      choseAnswershow: false, // 回复选择弹出
       isBlack: false, // 是否是黑名单用户
       dialogText: '',
       noMore: false,
@@ -213,7 +231,7 @@ export default {
         pulldownStatus: 'default'
       },
       loginInfo: '', // 登录信息
-      roomInfo: {
+      enterInfo: {
         roomInfo: {
           roomName: '',
           ownerNick: '',
@@ -221,11 +239,14 @@ export default {
           topic:'',
         }
       }, // 房间信息
+      identity: 'user', // 用户身份
       leftMsg: [
         
       ],
       rightMsg: [],
       historyList:[],
+      msgDomInfo: false,
+      editType: 'send', //编辑器类型 默认send 发送消息 answer 回复 explan 解答
     }
   },
   computed: {
@@ -242,7 +263,7 @@ export default {
           getRoomInfo:apidomain+'api/room/enter_room',//获取互动交流
           getHistoryList:apidomain+'api/room/get_room_history',//获取历史列表
           setRoomTopic: `${apidomain + 'api/room/management/set_room_topic'}`, // 设置主题
-          sendBtnMethod: `${apidomain}/api/room/send_message` // 发送消息
+          sendMessage: `${apidomain}/api/room/send_message` // 发送消息
         },
         islogin:'http://reg.tool.hexun.com/wapreg/checklogin.aspx?format=json&encode=utf-8',//判断登陆
         h5logurl: 'https://reg.hexun.com/h5/login.aspx?regtype=5&gourl=' + escape(window.location.href),
@@ -250,33 +271,110 @@ export default {
     },
     roomId() {
       return this.$route.query.roomId;
+    },
+    // 权限
+    authority() {
+      const iden = this.identity;
+      return {
+        operation: iden == 'teacher' || iden == 'assistant' // 操作权限 真三该查
+      }
+    }
+  },
+  watch: {
+    leftMsg:{
+      deep: true,
+      handler(val,nal) {
+        // this.resetScrollerBox('first');        
+        this.reflashBox(val,nal)
+      }
+    },
+    rightMsg (val,nal) {
+      this.reflashBox(val,nal)
+    },
+    index() {
+      this.reflashBox([1],[1])
     }
   },
   methods: {
+    eventAnswerOpen() {
+      this.setChoseAnswershow(false); // close chose list popup
+      this.editType = 'answer';
+      this.speakPlaceholder = `回答@用户名：`
+      this.setEditSpeakShow(true); // open editor
+    },
     setEditThemeShow(val) {
-      console.log(!this.loginInfo.islogin)
       if(this.loginInfo.islogin === 'False') {
         this.checkLogin();
         return false;
       }
       this.editThemeShow = val;
     },
-    setEditSpeakShow() {
-      this.editSpeakShow = !this.editSpeakShow;
+    setEditSpeakShow(val) {
+      if(this.loginInfo.islogin === 'False') {
+        this.checkLogin();
+        return false;
+      }
+      this.editSpeakShow = val;
+    },
+    setChoseAnswershow(val) {
+      console.log('what')
+      this.choseAnswershow = val;
     },
     sendMessage() {
-      console.log('send')
+      let type = ''
+      if(this.identity === 'teacher') {
+        type = 't_s'
+      }
       const params = {
         roomId: this.roomId,
-        type: '',
+        type: type,
         from:'pc',
-        contentType:'',
-        topic: '',
+        contentType:'text',
+        topic: `zhibo/room/${this.roomId}`,
         body: this.editSpeakValue,
-        sendToFree: '',
-        originalMessageId:'',
-        attributes:'',
+        sendToFree: false, 
+        attributes: '',  
       }
+      this.$vux.loading.show({
+        text: 'Loading'
+      })
+
+      this.$http.jsonp(this.interface.api.sendMessage, {params}).then(
+        res => {
+          this.$vux.loading.hide()
+          if(res.body.resultKey == 'ok') {
+            console.log('发送成功');
+            this.setEditSpeakShow(false);
+            this.editSpeakValue = '';
+          } else {
+            console.log( res.body.errorMessage)
+            this.$vux.alert.show({
+              title: '系统提示',
+              content: res.body.errorMessage,
+            })
+          }
+        },
+        errmsg => {
+          this.$vux.loading.hide()
+          console.log(res);
+        }
+      )
+    },
+    // reflash
+    reflashBox(val, nal) {
+      if(val.length > 0) {
+          const domArr = this.$refs[`scroller${this.index}`][0].$el.getElementsByClassName('js-msg-container')[0];
+          // 保存msgdom信息 用于把他们展示在可视范围内
+          if(domArr) {
+            this.msgDomInfo = domArr;
+          }
+        }
+
+        if(val[0]==nal[0]) { // 如果首项相同证明在尾部插入
+          this.resetScrollerBox('last');
+        } else {
+          this.resetScrollerBox('first');
+        }
     },
     // 下拉刷新
     getHistoryMsg() {
@@ -290,10 +388,7 @@ export default {
           this.getLeftMsg(params, callback)
         } else {
           setTimeout(() => {
-              this.pullStatus = {
-                pulldownStatus: 'default'
-              }
-              this.$refs[`scroller${this.index}`][0].reset()
+              this.resetScrollerBox('first')
               this.noMore = true;
             }, 10)
           
@@ -304,15 +399,6 @@ export default {
         this.historyList.shift();
         console.log(data)
         if(data.length > 0) {
-          this.$nextTick(() => {
-            setTimeout(() => {
-              this.$refs[`scroller${this.index}`][0].reset()
-              // this.pullupEnabled && this.$refs.scroller.enablePullup()
-              this.pullStatus = {
-                pulldownStatus: 'default'
-              }
-            }, 10)
-          })
         } else {
           getData()
         }
@@ -320,6 +406,31 @@ export default {
       }
       
       getData()
+    },
+    // 重置scroller viewbox
+    resetScrollerBox(type = 'last') {
+      this.$nextTick(() => {
+        
+        setTimeout(() => {
+          let top = '0'
+          if(this.msgDomInfo) {
+            console.log(type)
+            if(type == 'last') {
+              top = this.msgDomInfo.scrollHeight - this.$refs[`scroller${this.index}`][0].$el.clientHeight;
+            }
+            
+          }
+          console.log(top)
+          this.$refs[`scroller${this.index}`][0].reset({
+            top: top
+          })
+          // this.pullupEnabled && this.$refs.scroller.enablePullup()
+          this.pullStatus.pulldownStatus = 'default';
+    
+          
+          
+        }, 10)
+      })
     },
     //获取历史信息时间列表
     getHistoryList() {
@@ -345,12 +456,13 @@ export default {
       
  
     },
-    // 获取直播观点
+    // 获取互动
     getRightMsg(params = {roomId: this.roomId}, callback) {
       this.$http.jsonp(this.interface.api.getRightMsg, {params}).then(
         res => {
           if(res.body.resultKey === 'ok') {
             this.rightMsg = this.rightMsg.concat(res.body.data.messages);
+            
           }
         },
         errmsg => {
@@ -363,7 +475,9 @@ export default {
       this.$http.jsonp(this.interface.api.getLeftMsg, {params}).then(
         res => {
           if(res.body.resultKey === 'ok') {
-            this.leftMsg = res.body.data.messages.concat(this.leftMsg);
+            if(res.body.data.messages.length > 0) { // 防止没有数据时重置leftMsg
+              this.leftMsg = res.body.data.messages.concat(this.leftMsg);
+            }        
             if(callback && typeof(callback === 'function')) {
               callback.apply(this, [res.body.data.messages]);
             }
@@ -384,7 +498,7 @@ export default {
         res => {
           
           if(res.body.resultKey === 'ok') {
-            this.roomInfo.roomInfo.topic = this.editThemeValue
+            this.enterInfo.roomInfo.topic = this.editThemeValue
             this.setEditThemeShow(false);
           } else {
             console.log('失败')
@@ -399,7 +513,7 @@ export default {
     getFollowInfo() {
       const params = {
         source: 2,
-        uid: this.roomInfo.roomInfo.ownerId,
+        uid: this.enterInfo.roomInfo.ownerId,
       };
       this.$http.jsonp(this.interface.api.getFollowInfo, {params}).then(
         res => {
@@ -423,7 +537,7 @@ export default {
       }
       const params = {
         source: 2,
-        uid: this.roomInfo.roomInfo.ownerId,
+        uid: this.enterInfo.roomInfo.ownerId,
       };
       this.$http.jsonp(this.interface.api.followtearch, {params}).then(
         res => {
@@ -467,7 +581,8 @@ export default {
           res => {
             if(res.body.resultKey === 'ok') {
               const data = res.body.data
-              this.roomInfo = data;
+              this.enterInfo = data;
+              this.checkUserType(this.enterInfo)
               resolve();
               
             } else {
@@ -495,6 +610,32 @@ export default {
         )
       })
       
+    },
+    // 判断用户身份
+    checkUserType(info) {
+      const permission = info.userPermissions;
+      this.linkInfo = info.isfavorite ? '已关注': '关注'; // 是否关注该老师
+      this.topicWebinar = info.topicWebinar; // 是否是主题直播
+      this.isFree = info.type == 'free'&&true;
+      console.log(info.userInfo.userId == info.roomInfo.ownerId)
+      //当前登录身份识别 -----登录用户身份
+      if(!info.userInfo.login) {
+        this.identity = 'anonymous' // 游客
+      } else if(permission.isZhiboCompere) {
+        this.identity = 'presenter' // ··············
+      } else if(info.userInfo.userId == info.roomInfo.ownerId && permission.isRoomOwner) {
+        this.identity = 'teacher' // 老师
+      } else if(permission.isTeacherAssistant&&permission.isRoomOwner) {
+        this.identity = 'teacher' // 老师
+      } else if (permission.isTeacherAssistant) {
+        this.identity = 'assistant' // 助手
+      } else if (permission.isCustomerService) {
+        this.identity = 'service' // 客服
+      } else if(permission.isTeachersStudent) {
+        this.identity = 'service' // VIP
+      } else {
+        this.identity = 'user' // 普通用户
+      }
     },
     // 时候在App
     isApp(){
@@ -685,4 +826,29 @@ export default {
   padding: 0 !important;
 }
 
+.chose-answer-list {
+  padding: .266667rem;
+  background: transparent;
+  .weui-btn:after {
+    border-radius: 0;
+    border: none;
+  }
+  .c-a-l-btn {
+    border-radius: 0;
+  }
+  .c-a-l-btn-one {
+    border-top-right-radius: .133333rem;
+    border-top-left-radius: .133333rem;
+  }
+  .c-a-l-btn-two {
+    margin: 0;
+    margin-top: 0 !important;
+    border-bottom-right-radius: .133333rem;
+    border-bottom-left-radius: .133333rem;
+  }
+  .c-a-l-btn-three {
+    border-radius: .133333rem;
+    
+  }
+}
 </style>

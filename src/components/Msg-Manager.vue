@@ -1,5 +1,5 @@
 <template>
-  <div id="Msg-Manager" class="Msg-Manager">
+  <div  class="Msg-Manager">
     <div :class="['m-list', cData.class]">
       <div class="l-container">
         <div class="c-img" >
@@ -30,7 +30,7 @@
                 </div>
               </div> 
             </div>
-            <p class="m-c-opera">
+            <p class="m-c-opera"  v-if="operation.zhibo">
               <span class="btn">
                 删除
               </span>
@@ -40,9 +40,33 @@
               </span>
               <span class="gap"></span>
               <span class="btn">
-                重要观点
+                推送重要观点
               </span>
-
+            </p>
+            <p class="m-c-opera"  v-if="operation.hudong ">
+              <span class="btn">
+                踢
+              </span>
+              <span class="gap"></span>
+              <span class="btn">
+                黑
+              </span>
+              <span class="gap"></span>
+              <span class="btn">
+                禁
+              </span>
+              <span class="gap"></span>
+              <span class="btn">
+                删
+              </span>
+              <span class="gap"></span>
+              <span class="btn">
+                复制
+              </span>
+              <span class="gap"></span>
+              <span class="btn" @click="eventAnswerMethod">
+                回复
+              </span>
             </p>
           </section>
         </div>
@@ -65,7 +89,7 @@ export default {
     Flexbox,
     FlexboxItem,
   },
-  props:['info'],
+  props:['info', 'authority', 'type'],
   data() {
     return {
       msg: 'Msg-Manager',
@@ -82,7 +106,7 @@ export default {
       const CUSTOMER = ['u_s', 'u_r', 'u_a'];
       const HXSERVICE = ['cs_s', 'cs_ro'];
       const HOST = ['zc_s', 'zc_rp', 'zc_ro', 'zc_rol', 'zc_ror']
-      const SYSTEM = ['topic', 'ad_robot_room', 'ad_robot_all', 'room_sys_msg', 'gift', 'announcement', 'speak_policy'];
+      const SYSTEM = ['topic', 'ad_robot_room', 'ad_robot_all', 'room_sys_msg', 'gift', 'announcement', 'speak_policy', 'update_room'];
       if(typeof(obj.body) !== 'undefined') {
         obj.cbody = this.bbcode(obj.body)
       }
@@ -114,6 +138,12 @@ export default {
       }
       
       return obj;
+    },
+    operation() {
+      return {
+        zhibo: this.cData.class != 'system' && this.authority.operation && this.type == '直播观点',
+        hudong: this.cData.class != 'system' && this.authority.operation && this.type == '互动交流' && this.cData.level != '老师',
+      }
     }
   },
   methods: {
@@ -149,6 +179,9 @@ export default {
       const codejs = new BBcode();
       return codejs.ins(body).toHTML('face').toHTML('img').toHTML('url').toHTML('at').out();
     },
+    eventAnswerMethod() {
+      this.$emit('answerMethod', true)
+    }
   }
 }
 </script>

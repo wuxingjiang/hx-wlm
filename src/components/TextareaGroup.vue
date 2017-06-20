@@ -17,7 +17,8 @@
               ></x-textarea>
               <div
               id="editor-trigger"
-              class="e-t-g-t-c-edit"
+              ref="quillEdit"
+              :class="['e-t-g-t-c-edit', editType == 'send'?'':'e-t-g-t-c-edit-other']"
               v-if="type === 'wuEdit'"
               v-model = "editValue"
               >
@@ -117,7 +118,7 @@ export default {
   directives: {
     TransferDom
   },
-  props:['max', 'editShow', 'value', 'title', 'type', 'placeholder'],
+  props:['max', 'editShow', 'value', 'title', 'type', 'placeholder', 'editType'],
 
   components: {
     Group,
@@ -142,11 +143,12 @@ export default {
       emojiShow: false,
       quill: '',
       needDel: '', // emoji是否需要删除
+      editDom: ''
     }
   },
   computed: {
     placeholderShow() {
-      return !this.editLength;
+      return !this.editLength || this.editType == 'answer';
     },
     issend() {
       return !!this.editValue.trim();
@@ -176,6 +178,9 @@ export default {
       if(this.type === 'textArea') {
         this.editLength = len;
       }
+      if(!val && this.type == 'wuEdit') {
+        this.resetEditDom();
+      }
       this.$emit('input', val)
     },
     editLength(val) {
@@ -188,6 +193,13 @@ export default {
     eventClose() {
       this.editValue = "";
       this.$emit('setEditShow', false)
+    },
+    resetEditDom() {
+      if(!this.editDom) {
+          this.editDom = this.$refs.quillEdit.getElementsByClassName('ql-editor')[0];
+      } else {
+          this.editDom.innerHTML = '';
+      }
     },
     setEmojiShow() {
       this.emojiShow = !this.emojiShow;
@@ -254,6 +266,12 @@ export default {
       this.editValue = str;
       this.editLength = len;
     });
+    if(this.$refs.quillEdit) {
+        this.editDom = this.$refs.quillEdit.getElementsByClassName('ql-editor')[0];
+        this.resetEditDom();
+    }
+    
+   
   }
 }
 </script>
@@ -341,7 +359,20 @@ export default {
   }
 }
 
-.TextareaGroup {
-  
+.e-t-g-t-c-edit{
+  .ql-editor {
+    padding: .066667rem;
+  }
 }
+
+.e-t-g-t-c-edit-other {
+  .ql-editor {
+    text-indent: 9em;
+  }
+  .ql-hidden {
+    display: none;
+  }
+}
+
+
 </style>
