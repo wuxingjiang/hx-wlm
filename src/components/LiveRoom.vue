@@ -1,6 +1,6 @@
 <template>
   <div class="liveRoom" id="liveRoom">
-    <x-header>{{enterInfo.roomInfo.roomName}}</x-header>
+    <x-header v-if="headerShow">{{enterInfo.roomInfo.roomName}}</x-header>
     <header class="head">
         <div class="h-img">
             <img :src="enterInfo.roomInfo.imageUrl" alt="">
@@ -11,7 +11,11 @@
             </p>
             <p class="i-theme">
               <span class="t-text">主题：{{enterInfo.roomInfo.topic}}</span>
-              <span class="t-btn" @click="setEditThemeShow(true)">
+              <span  
+              class="t-btn"
+              v-if="authority.operation"
+              @click="setEditThemeShow(true)"
+              >
                 <svg class="icon b-edit" aria-hidden="true">
                   <use xlink:href="#icon-edit"></use>
                 </svg>
@@ -43,44 +47,56 @@
         {{item}}
       </tab-item>
     </tab>
-    <swiper 
-    v-model="index" 
-    class="container" 
-    :show-dots="false"
-    height="100%">
-      <swiper-item class="c-item" v-for="(item, index) in list" :key="index">
-        <scroller
-        :ref = "`scroller${index}`"
-        v-model="pullStatus"
-        height="100%"
-        scrollbarY
-        :use-pulldown="index === 0 && !noMore? true : false"
-        :pulldown-config="pulldownConfig"
-        @on-pulldown-loading="getHistoryMsg">
-          <div class="js-msg-container">
-            <divider v-if="index == '0' && noMore">没有更多数据</divider>
-            <msg-manager
-            v-for="(msg, num) in leftMsg"
-            v-if="item === '直播观点'"
-            :authority = "authority"
-            :info="msg"
-            :key="msg.type + num"
-            :type= "item"
-            ></msg-manager>
-            <msg-manager
-           
-            v-for="(msg, num) in rightMsg"
-            v-if="item === '互动交流'"
-            :authority = "authority"
-            :info="msg"
-            :key = "msg.type + num"
-             :type= "item"
-             @answerMethod = 'setChoseAnswershow'
-            ></msg-manager>
-          </div>
-        </scroller>
-      </swiper-item>
-    </swiper>
+    <div
+    ref = "container"
+    class="container" >
+      <swiper 
+      v-model="index" 
+      :show-dots="false"
+      ref = 'swiper'
+      :height="containerHeight">
+        <swiper-item height="100%" class="c-item" v-for="(item, index) in list" :key="index">
+          <scroller
+          :ref = "`scroller${index}`"
+          v-model="pullStatus"
+          height="100%"
+          scrollbarY
+          :use-pulldown="index === 0 && !noMore? true : false"
+          :pulldown-config="pulldownConfig"
+          @on-pulldown-loading="getHistoryMsg">
+            <div class="js-msg-container">
+              <divider v-if="index == '0' && noMore">没有更多数据</divider>
+              <msg-manager
+              v-for="(msg, num) in leftMsg"
+              v-if="item === '直播观点'"
+              :authority = "authority"
+              :info="msg"
+              :key="msg.type + num"
+              :type= "item"
+              :interface="interface"
+              :roomId ="roomId"
+              :sub = "num"
+              ></msg-manager>
+              <msg-manager
+            
+              v-for="(msg, num) in rightMsg"
+              v-if="item === '互动交流'"
+              :authority = "authority"
+              :info="msg"
+              :key = "msg.type + num"
+              :type= "item"
+              @answerMethod = 'answerMethod'
+              @explainMethod = 'explainMethod'
+              :interface="interface"
+              :roomId="roomId"
+              :sub = "num"
+              ></msg-manager>
+            </div>
+          </scroller>
+        </swiper-item>
+      </swiper>
+    </div>
+
     <flexbox class="footer vux-NaNrem-t">
       <flexbox-item :span="85/100">
         <x-button 
@@ -95,6 +111,7 @@
       <flexbox-item :span="15/100">
         <x-button
         class="f-btn-emoji"
+        @click.native="eventOpenEmoji"
         plain>
           <svg class="icon e-xiaolian" aria-hidden="true">
               <use xlink:href="#icon-xiaolian"></use>
@@ -106,22 +123,30 @@
     :max="editThemeMax"
     :placeholder="'请输入今日主题'"
     :editShow="editThemeShow"
+    :editemojiShow = "editemojiShow"
     @setEditShow="setEditThemeShow"
     @sendBtnMethod="setRoomTopic"
     v-model="editThemeValue"
     :title="'编辑今日主题'"
     :type="'textArea'"
+    :editType="editType"
+    :identity = "identity"
     ></textarea-group>
     <textarea-group
     :max="editSpeakMax"
     :placeholder="speakPlaceholder"
     :editShow="editSpeakShow"
     @setEditShow="setEditSpeakShow"
+    @resetEdit="resetEdit"
     @sendBtnMethod="sendMessage"
+    @setEditemojiShow = "setEditemojiShow"
     v-model="editSpeakValue"
     :title="'编辑内容'"
     :type="'wuEdit'"
     :editType="editType"
+    :identity = "identity"
+    :editemojiShow = "editemojiShow"
+
     ></textarea-group>
     <div v-transfer-dom >
       <x-dialog v-model = "isBlack" :dialog-style="{padding:'40px 20px'}">{{dialogText}}</x-dialog>
@@ -131,9 +156,20 @@
       v-model="choseAnswershow"
       is-transparent >
         <div class="chose-answer-list">
-            <x-button class="c-a-l-btn c-a-l-btn-one" @click.native="eventAnswerOpen">公开回答</x-button>
-            <x-button class="c-a-l-btn c-a-l-btn-two vux-1px-t">私密回答</x-button>   
+            <x-button class="c-a-l-btn c-a-l-btn-one" @click.native="eventAnswerOpen">左侧直播观点显示</x-button>
+            <x-button class="c-a-l-btn c-a-l-btn-two vux-1px-t" @click.native="eventAnswerSolo">右侧互动交流显示</x-button>   
             <x-button class="c-a-l-btn c-a-l-btn-three" @click.native="setChoseAnswershow(false)">取消</x-button>
+          </div>
+      </popup>
+    </div>
+    <div v-transfer-dom>
+      <popup 
+      v-model="choseExplainshow"
+      is-transparent >
+        <div class="chose-answer-list">
+            <x-button class="c-a-l-btn c-a-l-btn-one" @click.native="eventExplainOpen">公开回答</x-button>
+            <x-button class="c-a-l-btn c-a-l-btn-two vux-1px-t" @click.native="eventExplainSolo">私密回答</x-button>   
+            <x-button class="c-a-l-btn c-a-l-btn-three" @click.native="setChoseExplainshow(false)">取消</x-button>
           </div>
       </popup>
     </div>
@@ -145,8 +181,12 @@ import MsgManager from '@/components/Msg-Manager.vue'
 import InputPlaceholder from '@/components/InputPlaceholder.vue'
 import TextareaGroup from '@/components/TextareaGroup.vue'
 import {mqttSession} from '@/assets/js/mqttSession.js'
+import webenv from '@/assets/js/config.js'
+import * as Browser from '@/assets/js/browser.js';
 
-import { 
+
+import {
+  Actionsheet,
   Sticky, 
   XHeader, 
   Tab, 
@@ -172,6 +212,7 @@ const list = () => ['直播观点', '互动交流']
 export default {
  
   components: {
+    Actionsheet,
     Sticky,
     XHeader,
     Tab,
@@ -203,6 +244,7 @@ export default {
       // preserves its current state and we are modifying
       // its initial state.
       msg: 'Hello World!',
+      webenv: webenv,
       defaultSelected: '直播观点',
       index: 0,
       list: list(),
@@ -212,6 +254,7 @@ export default {
       editSpeakShow: false,
       editSpeakMax: 1000,
       editSpeakValue: '',
+      editemojiShow: false,
       likeInfo: '关注', // 关注信息
       speakPlaceholder: '说说你的想法…',
       pulldownConfig: {
@@ -240,18 +283,22 @@ export default {
         }
       }, // 房间信息
       identity: 'user', // 用户身份
-      leftMsg: [
-        
-      ],
-      rightMsg: [],
+      leftMsg: '',
+      rightMsg: '',
       historyList:[],
       msgDomInfo: false,
       editType: 'send', //编辑器类型 默认send 发送消息 answer 回复 explan 解答
+      answerWho: '回复谁',
+      choseSendTypeShow: false,
+      sendType: {},
+      choseExplainshow: false,
+      containerHeight: 439/2 +'px',
+      weChatLogin: false, // 是否绑定微信
     }
   },
   computed: {
     interface() {
-      let apidomain='http://api.zhibo.hexun.com/';
+      let apidomain= this.webenv.apiHost;
       return {
         api:{
           getRoomInfo:apidomain+'api/room/get_room_info?roomId=',//获取房间信息
@@ -263,10 +310,38 @@ export default {
           getRoomInfo:apidomain+'api/room/enter_room',//获取互动交流
           getHistoryList:apidomain+'api/room/get_room_history',//获取历史列表
           setRoomTopic: `${apidomain + 'api/room/management/set_room_topic'}`, // 设置主题
-          sendMessage: `${apidomain}/api/room/send_message` // 发送消息
+          sendMessage: `${apidomain}/api/room/send_message`, // 发送消息
+          delMessage: `${apidomain}api/room/management/delete_message`, // 删除消息
+          setImMsg: `${apidomain}api/room/management/set_message_important`, // 设置重要观点
+          addUserBlackList: `${apidomain}api/room/management/add_user_blacklist`, // 拉黑用户
+          kickUser: `${apidomain}api/room/management/kick_user`, // 踢人
+          silenceUser: `${apidomain}api/room/management/silence_user`, // 禁言
+
+
         },
         islogin:'http://reg.tool.hexun.com/wapreg/checklogin.aspx?format=json&encode=utf-8',//判断登陆
         h5logurl: 'https://reg.hexun.com/h5/login.aspx?regtype=5&gourl=' + escape(window.location.href),
+        isBindWeChat: 'https://regtool.hexun.com/wapreg/CheckBindWechat.aspx', // 是否绑定微信
+        bindWeChat: `https://reg.hexun.com/bindweixin.aspx?gourl=${escape(window.location.href)}`,
+      }
+    },
+    headerShow() {
+      const browser = new Browser.Browser().browser;
+      let arr = ['Wechat', 'QQ']
+      return arr.indexOf(browser) == '-1';
+    },
+     // 是否在微信
+    isWechat(){
+      const browser = new Browser.Browser().browser;
+      return browser == 'Wechat';
+    },
+    // 时候在App
+    isApp(){
+      const ua = navigator.userAgent.toLowerCase();
+      if(ua.indexOf('hxappid')>0) {
+        return true;
+      } else {
+        return false;
       }
     },
     roomId() {
@@ -276,16 +351,17 @@ export default {
     authority() {
       const iden = this.identity;
       return {
-        operation: iden == 'teacher' || iden == 'assistant' // 操作权限 真三该查
+        operation: iden == 'teacher' || iden == 'assistant', // 操作权限 真三该查 管理权限
+        answerService: iden != "anonymous", // 回复功能
       }
-    }
+    },
   },
   watch: {
     leftMsg:{
       deep: true,
-      handler(val,nal) {
-        // this.resetScrollerBox('first');        
-        this.reflashBox(val,nal)
+      handler(newValue,oldValue) {
+        // this.resetScrollerBox('first');   
+        this.reflashBox(newValue,oldValue)
       }
     },
     rightMsg (val,nal) {
@@ -293,75 +369,277 @@ export default {
     },
     index() {
       this.reflashBox([1],[1])
+    },
+    containerHeight(val , nal) {
+      if(val !== nal) {
+        this.$refs.swiper._watcher.vm.xheight = val
+      }
     }
   },
   methods: {
-    eventAnswerOpen() {
-      this.setChoseAnswershow(false); // close chose list popup
-      this.editType = 'answer';
-      this.speakPlaceholder = `回答@用户名：`
+    //删除消息
+    delMessage(a) {
+      console.log(a);
+       this.leftMsg.filter(({messageId}, index) => {
+          if(messageId == a.toDeleteMessageId) {
+              this.leftMsg.splice(index, 1)
+              return true;
+          }
+      })
+      this.rightMsg.filter(({messageId}, index) => {
+        if(messageId == a.toDeleteMessageId) {
+            this.rightMsg.splice(index, 1)
+            return true;
+        }
+      })
+      
+    },
+    // 重置编辑器数据
+    resetEdit() {
+      this.speakPlaceholder = '说说你的想法…'
+      this.editType = 'send';
+
+    },
+    // 回答问题
+    answerMethod(params) {
+    
+      this.answerWho = {
+        name: params.name,
+        msgId: params.msgId,
+
+      };
+      if(params.type) {
+         this.setChoseAnswershow(true);
+      } else {
+        if(this.identity == 'user' || this.identity == 'vipUser') {
+          this.userAnswer()
+        }
+      }
+      
+    },
+    explainMethod(params) {
+      this.answerWho = {
+        name: params.name,
+        msgId: params.msgId,
+      };
+      this.setChoseExplainshow(true);
+    },
+    eventOpenEmoji () {
+      this.setEditSpeakShow(true);
+      this.setEditemojiShow(true);
+    },
+    // 公开回答
+    eventExplainOpen() {
+      this.setChoseExplainshow(false); // close chose list popup
+      this.editType = 'openExplain';
+      this.speakPlaceholder = `回答@${this.answerWho.name}：`
       this.setEditSpeakShow(true); // open editor
     },
+    // 私密回答
+    eventExplainSolo() {
+      this.setChoseExplainshow(false); // close chose list popup
+      this.editType = 'soloExplain';
+      this.speakPlaceholder = `私密回答@${this.answerWho.name}：`
+      this.setEditSpeakShow(true); // open editor
+    },
+    // 左侧回答
+    eventAnswerOpen() {
+      this.setChoseAnswershow(false); // close chose list popup
+      this.editType = 'openAnswer';
+      this.speakPlaceholder = `互动回复@${this.answerWho.name}：`
+      this.setEditSpeakShow(true); // open editor
+    },
+    // 右侧回答
+    eventAnswerSolo() {
+      this.setChoseAnswershow(false); // close chose list popup
+      this.editType = 'soloAnswer';
+      this.speakPlaceholder = `互动回复@${this.answerWho.name}：`
+      this.setEditSpeakShow(true); // open editor
+    },
+    userAnswer() {
+      this.editType = 'userAnswer';
+      this.speakPlaceholder = `回复客服@${this.answerWho.name}：`
+      this.setEditSpeakShow(true); // open editor
+    },
+    teacherAnswer() {
+      this.editType = 'teacherAnswer';
+      this.speakPlaceholder = `回复客服@${this.answerWho.name}：`
+      this.setEditSpeakShow(true); // open editor
+    },
+    setEditemojiShow(val) {
+      this.editemojiShow = val;
+    },
     setEditThemeShow(val) {
-      if(this.loginInfo.islogin === 'False') {
-        this.checkLogin();
-        return false;
-      }
+      if(!this.isLogin()){
+       return false
+     }
       this.editThemeShow = val;
     },
     setEditSpeakShow(val) {
-      if(this.loginInfo.islogin === 'False') {
-        this.checkLogin();
-        return false;
-      }
+     if(!this.isLogin()){
+       return false
+     }
       this.editSpeakShow = val;
     },
     setChoseAnswershow(val) {
-      console.log('what')
       this.choseAnswershow = val;
     },
-    sendMessage() {
-      let type = ''
-      if(this.identity === 'teacher') {
-        type = 't_s'
-      }
-      const params = {
-        roomId: this.roomId,
-        type: type,
-        from:'pc',
-        contentType:'text',
-        topic: `zhibo/room/${this.roomId}`,
-        body: this.editSpeakValue,
-        sendToFree: false, 
-        attributes: '',  
-      }
-      this.$vux.loading.show({
-        text: 'Loading'
-      })
-
-      this.$http.jsonp(this.interface.api.sendMessage, {params}).then(
-        res => {
-          this.$vux.loading.hide()
-          if(res.body.resultKey == 'ok') {
-            console.log('发送成功');
-            this.setEditSpeakShow(false);
-            this.editSpeakValue = '';
-          } else {
-            console.log( res.body.errorMessage)
-            this.$vux.alert.show({
-              title: '系统提示',
-              content: res.body.errorMessage,
-            })
-          }
-        },
-        errmsg => {
-          this.$vux.loading.hide()
-          console.log(res);
+    setChoseExplainshow(val) {
+      this.choseExplainshow = val;
+    },
+    sendMessage(subParams) {
+      let type = '';
+      let msgId = '';
+      let params;
+      if(this.identity === 'teacher' && this.editType === 'send') {
+        type = 't_s';
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          attributes: '', 
         }
-      )
+      } else if (this.identity === 'teacher' && this.editType === 'openAnswer') {
+        type = 't_rol'; // 公开回复
+        msgId = this.answerWho.msgId;
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: msgId,
+          attributes: '', 
+        }
+
+      } else if (this.identity === 'teacher' && this.editType === 'soloAnswer') {
+        type = 't_ror' // 私密回复
+        msgId = this.answerWho.msgId;
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: msgId,
+          attributes: '', 
+        }
+      } else if (this.identity === 'teacher' && this.editType === 'openExplain') {
+        type = 't_ro' // 公开回答
+        msgId = this.answerWho.msgId;
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: msgId,
+          attributes: '', 
+        }
+      } else if (this.identity === 'teacher' && this.editType === 'soloExplain') {
+        type = 't_rp' // 私密回答
+        msgId = this.answerWho.msgId;
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/chat/dm/${this.enterInfo.roomInfo.ownerId}/${this.enterInfo.userInfo.userId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: msgId,
+          attributes: '', 
+        }
+      } else if (this.identity === 'user' && subParams.isQuestion && this.editType === 'send') {
+        type = 'u_a' // 用户提问
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/chat/dm/${this.enterInfo.roomInfo.ownerId}/${this.enterInfo.userInfo.userId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          attributes: '', 
+        }
+      } else if (this.identity === 'user' && !subParams.isQuestion && this.editType === 'send') {
+        type = 'u_s' // 用户发言
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          attributes: '', 
+        }
+      } else if (this.identity === 'user' && !subParams.isQuestion && this.editType === 'userAnswer') {
+        type = 'u_r' // 用户回答客服
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: this.answerWho.msgId,
+          attributes: '', 
+        }
+      } else if (this.identity === 'user' && !subParams.isQuestion && this.editType === 'teacher') {
+        type = 'u_r' // 用户回答客服
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: this.answerWho.msgId,
+          attributes: '', 
+        }
+      }
+
+      if(!type) {
+        this.$vux.toast.show({
+            type: 'warn',
+            time: '2000'
+          })
+      }
+
+      this.$Fetch(this.interface.api.sendMessage, params, (res)=> {
+        if(res.body.resultKey == 'ok') {
+          this.setEditSpeakShow(false);
+          this.editSpeakValue = '';
+          this.$vux.toast.show({
+            type: 'success',
+            time: '2000'
+          })
+        } else {
+          this.$vux.alert.show({
+            title: '系统提示',
+            content: res.body.errorMessage,
+          })
+        }
+      }, this)
+
+  
     },
     // reflash
     reflashBox(val, nal) {
+      let type= 'last'; // 默认刷新到尾部
       if(val.length > 0) {
           const domArr = this.$refs[`scroller${this.index}`][0].$el.getElementsByClassName('js-msg-container')[0];
           // 保存msgdom信息 用于把他们展示在可视范围内
@@ -370,15 +648,18 @@ export default {
           }
         }
 
-        if(val[0]==nal[0]) { // 如果首项相同证明在尾部插入
-          this.resetScrollerBox('last');
-        } else {
-          this.resetScrollerBox('first');
-        }
+      if(val[0]==nal[0] && val[val.length - 1] ==nal[nal.length - 1]) { // 如果收尾相同 则在中间
+       type = 'middle'
+      } else if(val[0]==nal[0] && val[val.length - 1] !=nal[nal.length - 1]){ // 如果首同尾不同 则在尾部
+        type = 'last'
+      } else if (val[0] !=nal[0] && val[val.length - 1] ==nal[nal.length - 1]) {
+        type = 'first'
+      }
+      console.log(type)
+       this.resetScrollerBox(type);
     },
     // 下拉刷新
     getHistoryMsg() {
-      
       const getData = () => {
         const params = {
           roomId: this.roomId,
@@ -394,23 +675,20 @@ export default {
           
         }
       }
-
       const callback = (data) => {
         this.historyList.shift();
-        console.log(data)
         if(data.length > 0) {
         } else {
           getData()
         }
      
       }
-      
       getData()
     },
+  
     // 重置scroller viewbox
     resetScrollerBox(type = 'last') {
       this.$nextTick(() => {
-        
         setTimeout(() => {
           let top = '0'
           if(this.msgDomInfo) {
@@ -418,17 +696,15 @@ export default {
             if(type == 'last') {
               top = this.msgDomInfo.scrollHeight - this.$refs[`scroller${this.index}`][0].$el.clientHeight;
             }
-            
           }
-          console.log(top)
+          if(top < 0) {
+            top = 0
+          }
           this.$refs[`scroller${this.index}`][0].reset({
             top: top
           })
           // this.pullupEnabled && this.$refs.scroller.enablePullup()
           this.pullStatus.pulldownStatus = 'default';
-    
-          
-          
         }, 10)
       })
     },
@@ -461,6 +737,9 @@ export default {
       this.$http.jsonp(this.interface.api.getRightMsg, {params}).then(
         res => {
           if(res.body.resultKey === 'ok') {
+            if(!Array.isArray(this.rightMsg)) {
+               this.rightMsg = [];
+            }
             this.rightMsg = this.rightMsg.concat(res.body.data.messages);
             
           }
@@ -475,6 +754,9 @@ export default {
       this.$http.jsonp(this.interface.api.getLeftMsg, {params}).then(
         res => {
           if(res.body.resultKey === 'ok') {
+            if(!Array.isArray(this.leftMsg)) {
+               this.leftMsg = [];
+            }
             if(res.body.data.messages.length > 0) { // 防止没有数据时重置leftMsg
               this.leftMsg = res.body.data.messages.concat(this.leftMsg);
             }        
@@ -494,20 +776,24 @@ export default {
         roomId: this.roomId,
         topic: this.editThemeValue,
       }
-      this.$http.jsonp(this.interface.api.setRoomTopic, {params}).then(
-        res => {
-          
-          if(res.body.resultKey === 'ok') {
+      this.$Fetch(this.interface.api.setRoomTopic, params, (res) => {
+        if(res.body.resultKey === 'ok') {
+
             this.enterInfo.roomInfo.topic = this.editThemeValue
             this.setEditThemeShow(false);
+
+            this.$vux.toast.show({
+                type: 'success',
+                time: '2000'
+              })
           } else {
-            console.log('失败')
+            this.$vux.alert.show({
+                title: '系统提示',
+                content: res.body.errorMessage,
+              })
           }
-        },
-        errmsg => {
-          console.log('shibao')
-        }
-      )
+      }, this)
+     
     },
     //获取关注信息
     getFollowInfo() {
@@ -562,6 +848,7 @@ export default {
         this.$http.jsonp(this.interface.islogin).then(
           res => {
             this.loginInfo = res.body;
+            
             resolve();
           },
           errmsg => {
@@ -622,7 +909,7 @@ export default {
       if(!info.userInfo.login) {
         this.identity = 'anonymous' // 游客
       } else if(permission.isZhiboCompere) {
-        this.identity = 'presenter' // ··············
+        this.identity = 'presenter' // 主持人
       } else if(info.userInfo.userId == info.roomInfo.ownerId && permission.isRoomOwner) {
         this.identity = 'teacher' // 老师
       } else if(permission.isTeacherAssistant&&permission.isRoomOwner) {
@@ -632,39 +919,55 @@ export default {
       } else if (permission.isCustomerService) {
         this.identity = 'service' // 客服
       } else if(permission.isTeachersStudent) {
-        this.identity = 'service' // VIP
+        this.identity = 'vipUser' // VIP
       } else {
         this.identity = 'user' // 普通用户
       }
     },
-    // 时候在App
-    isApp(){
-      const ua = navigator.userAgent.toLowerCase();
-      if(ua.indexOf('hxappid')>0) {
-        return true;
-      } else {
+    
+    
+    // 是否登录
+    isLogin() {
+       if(this.loginInfo.islogin === 'False') {
+        this.checkLogin();
         return false;
+      } else if(!this.weChatLogin) {
+        if(this.isWechat) {
+          this.checkBindWechat();
+        }
+        return true;
       }
+       return true;
     },
-    // 是否在微信
-    isWechat() {
-      const ua = navigator.userAgent.toLowerCase();  
-      if(ua.match(/MicroMessenger/i)=="micromessenger") {  
-          return true;  
-      } else {  
-          return false;  
-      }  
+    // 检测是否绑定微信
+    checkBindWechat() {
+      this.$http.jsonp(this.interface.isBindWeChat).then(
+        res => {
+          if(res.body.code == 0) { // 没有绑定
+            location.href= this.interface.bindWeChat;
+          } else if(!res.body.code == 1){ // 如果其他状态
+            this.$vux.alert.show({
+              title: '系统提示',
+              content: res.body.msg
+            })
+          } else if (res.body.code == 1) {
+            this.weChatLogin = true;
+          }
+        },
+        errmsg => {
+
+        },
+      )
     },
     // 去登录
     checkLogin() {
-      if(this.isApp()) {
+      if(this.isApp) {
         window.javatojs.login();
-      } else if(this.isWechat()) {
-        
+      } else if(this.isWechat) {
+        location.href= this.interface.bindWeChat;
       } else {
-        location.href='https://reg.hexun.com/h5/login.aspx?regtype=5&gourl='+escape(window.location.href)
+        location.href= this.interface.h5logurl;
       }
-      
     },
     init() {
       return new Promise((resolve, reject) => {
@@ -676,7 +979,6 @@ export default {
     
   },
   created() {
-    // this.init()
     if(!this.roomId) {
       this.$vux.alert.show({
         title: '系统提示',
@@ -685,16 +987,21 @@ export default {
       return false;
     };
     const init = Promise.all([this.getloginInfo(),this.getRoomInfo()]).then(
-      success => {
+      success => { 
         this.getFollowInfo();
         this.getLeftMsg();
         this.getRightMsg();
         this.getHistoryList();
         mqttSession.apply(this);
+        this.containerHeight = this.$refs.container.getBoundingClientRect().height + 'px';
       }
     )
+
+    if(this.isWechat) {
+      this.isLogin();
+    }
     
-  }
+  },
 }
 </script>
 
@@ -784,6 +1091,7 @@ export default {
 
 .container {
   flex: 1;
+  
 }
 
 .footer {

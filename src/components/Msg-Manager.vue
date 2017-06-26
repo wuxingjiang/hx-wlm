@@ -21,7 +21,7 @@
             <div class="m-c-con">
               <div class="c-c-answer" 
               >
-                <div v-html="cData.cbody"></div>
+                <div v-html="cData.cbody" :id="`xxx${cData.messageId}`"></div>
                 <div 
                 v-if="cData.originalMessageObj" 
                 class="c-c-question" 
@@ -31,41 +31,64 @@
               </div> 
             </div>
             <p class="m-c-opera"  v-if="operation.zhibo">
-              <span class="btn">
+              <span class="btn" @click="eventDelGD">
                 删除
               </span>
               <span class="gap"></span>
-              <span class="btn">
+              <span class="btn" 
+              v-clipboard:copy="cData.cbody"
+              v-clipboard:success="onCopy"
+              v-clipboard:error="onError">
                 复制
               </span>
               <span class="gap"></span>
-              <span class="btn">
-                推送重要观点
+              <span class="btn" v-if="cData.important">      
+                已推送
+              </span>
+              <span @click="eventSendImMsg" class="btn" v-else>      
+                推送为重要观点
               </span>
             </p>
             <p class="m-c-opera"  v-if="operation.hudong ">
-              <span class="btn">
+              <span class="btn"
+              @click="eventKickMethod">
                 踢
               </span>
               <span class="gap"></span>
-              <span class="btn">
+              <span class="btn"
+              @click="eventBlackMethod">
                 黑
               </span>
               <span class="gap"></span>
-              <span class="btn">
+              <span class="btn"
+              @click="eventSilenceMethod">
                 禁
               </span>
               <span class="gap"></span>
-              <span class="btn">
+              <span class="btn"
+              @click = "eventDelUserMethod">
                 删
               </span>
               <span class="gap"></span>
-              <span class="btn">
+              <span class="btn" 
+              v-clipboard:copy="cData.cbody"
+              v-clipboard:success="onCopy"
+              v-clipboard:error="onError">
                 复制
               </span>
               <span class="gap"></span>
-              <span class="btn" @click="eventAnswerMethod">
+              <span class="btn" @click="eventAnswerMethod(cData.nickName, cData.messageId, true)">
                 回复
+              </span>
+            </p>
+            <p class="m-c-opera"  v-if="operation.huifu ">
+              <span class="btn" @click="eventAnswerMethod(cData.nickName, cData.messageId, false)">
+                回复
+              </span>
+            </p>
+            <p  class="m-c-opera"  v-if="operation.jieda ">
+              <span class="btn" @click='eventExplainMethod(cData.nickName, cData.messageId)'>
+                解答
               </span>
             </p>
           </section>
@@ -89,7 +112,7 @@ export default {
     Flexbox,
     FlexboxItem,
   },
-  props:['info', 'authority', 'type'],
+  props:['info', 'authority', 'type','interface', 'roomId', 'sub'],
   data() {
     return {
       msg: 'Msg-Manager',
@@ -130,19 +153,27 @@ export default {
         obj.cbody = obj.value || obj.cbody;
         obj.level = '系统消息';
         obj.userImage = require('@/assets/system.png')
+        if(obj.type == 'gift') { // 送礼
+          obj.cbody = `${obj.userName}送给老师${obj.giftNum}${obj.giftUnit}${obj.giftName}`
+        }
+      } else if (HXSERVICE.indexOf(obj.type) != -1){
+        obj.class = 'service';
+        obj.level = '和讯客服';
       }
       
       if(typeof (obj.originalMessage)!='undefined') {
         obj.originalMessageObj = JSON.parse(obj.originalMessage)
-        obj.originalMessageObj._contentText = this.filter(obj.originalMessageObj.body)
+        obj.originalMessageObj._contentText = this.bbcode( this.filter(obj.originalMessageObj.body))
       }
       
       return obj;
     },
     operation() {
       return {
-        zhibo: this.cData.class != 'system' && this.authority.operation && this.type == '直播观点',
-        hudong: this.cData.class != 'system' && this.authority.operation && this.type == '互动交流' && this.cData.level != '老师',
+        zhibo: this.cData.class != 'system'  && this.authority.operation && this.type == '直播观点',
+        hudong: this.cData.class != 'system' && this.cData.type != 'u_a' && this.cData.class !="service" && this.authority.operation && this.type == '互动交流' && this.cData.level != '老师',
+        huifu: this.authority.answerService && this.type == '互动交流' && this.cData.class == 'service',
+        jieda: this.cData.class != 'system' && this.cData.type == 'u_a' && this.cData.class !="service" && this.authority.operation && this.type == '互动交流' && this.cData.level != '老师',
       }
     }
   },
@@ -179,9 +210,183 @@ export default {
       const codejs = new BBcode();
       return codejs.ins(body).toHTML('face').toHTML('img').toHTML('url').toHTML('at').out();
     },
-    eventAnswerMethod() {
-      this.$emit('answerMethod', true)
+    eventAnswerMethod(who, msgId, isChoseType) {   
+      if(this.authority.operation) {
+        isChoseType = true;
+      }   
+      const params = {
+          name: who,
+          msgId: msgId,
+          type: isChoseType
+        }
+      
+      this.$emit('answerMethod', params)
+    },
+    eventExplainMethod(who, msgId) {
+      const params = {
+          name: who,
+          msgId: msgId,
+        }
+      this.$emit('explainMethod', params)
+    },
+    onCopy() {
+      this.$vux.toast.show({
+        type: 'success',
+        time: '2000'
+      })
+
+    },
+    onError() {
+      this.$vux.toast.show({
+        type: 'cancel',
+        time: '2000'
+      })
+    },
+    // 删除观点
+    eventDelGD() {
+      this.$vux.confirm.show({
+        content: '你确定删除本条观点么？',
+
+        onConfirm: () =>{
+          this.delMsg();
+        },
+      }) 
+    },
+    // 推送重要观点
+    eventSendImMsg() {
+      const params = {
+        msgId: this.info.messageId,
+      }
+      this.$Fetch(this.interface.api.setImMsg, params, (res)=> {
+        if(res.body.resultKey == 'ok') {
+          this.$emit('delMethod', this.sub)
+          this.$vux.toast.show({
+            text: res.body.data.msg,
+            time: '2000'
+          })
+        } else {
+            this.$vux.alert.show({
+            title: '系统提示',
+            content: res.body.errorMessage,
+          })
+        }
+      }, this)
+    },
+    // 拉黑用户
+    eventBlackMethod() {
+      this.$vux.confirm.show({
+        content: `你确定,需要把当前用户</br>${this.cData.nickName}残忍的拉入黑名单么？`,
+        onConfirm: () => {
+          const params = {
+            roomId: this.roomId,
+            userId: this.cData.userId,
+            startTime: '1970-01-01',
+            endTime: '9999-12-31',
+          }
+          this.$Fetch(this.interface.api.addUserBlackList, params, (res) => {
+            if(res.body.resultKey == 'ok') {
+            // this.$emit('delMethod', this.sub)
+              this.$vux.toast.show({
+                type: 'success',
+                time: '2000'
+              })
+            } else {
+                this.$vux.alert.show({
+                title: '系统提示',
+                content: res.body.errorMessage,
+              })
+            }
+          }, this)  
+
+        }
+      })
+    },
+    // 踢人
+    eventKickMethod() {
+      this.$vux.confirm.show({
+        content: `你确定,需要把当前用户</br>${this.cData.nickName}踢出直播室么？`,
+        onConfirm: () => {
+          const params = {
+            roomId: this.roomId,
+            userId: this.cData.userId,
+          }
+          this.$Fetch(this.interface.api.kickUser, params, (res) => {
+            if(res.body.resultKey == 'ok') {
+            // this.$emit('delMethod', this.sub)
+              this.$vux.toast.show({
+                type: 'success',
+                time: '2000'
+              })
+            } else {
+                this.$vux.alert.show({
+                title: '系统提示',
+                content: res.body.errorMessage,
+              })
+            }
+          }, this)  
+        }
+      })
+    },
+    //禁言
+    eventSilenceMethod() {
+      this.$vux.confirm.show({
+        content: `你确定,需要把当前用户</br>${this.cData.nickName}残忍的禁言么？`,
+        onConfirm: () => {
+          const params = {
+            roomId: this.roomId,
+            userId: this.cData.userId,
+          }
+          this.$Fetch(this.interface.api.silenceUser, params, (res) => {
+            if(res.body.resultKey == 'ok') {
+            // this.$emit('delMethod', this.sub)
+              this.$vux.toast.show({
+                type: 'success',
+                time: '2000'
+              })
+            } else {
+                this.$vux.alert.show({
+                title: '系统提示',
+                content: res.body.errorMessage,
+              })
+            }
+          }, this)  
+        }
+      })
+    },
+    //删除
+    eventDelUserMethod() {
+      this.$vux.confirm.show({
+        content: `您确定，需要把当前用户</br>${this.cData.nickName}发表的信息删除么？`,
+        onConfirm: () => {
+          this.delMsg()
+        }
+      })
+    },
+    delMsg() {
+      const params = {
+        roomId: this.roomId,
+        msgId: this.info.messageId
+      }
+
+      this.$Fetch(this.interface.api.delMessage, params, (res)=> {
+        if(res.body.resultKey == 'ok') {
+    
+          this.$vux.toast.show({
+            type: 'success',
+            time: '2000'
+          })
+        } else {
+            this.$vux.alert.show({
+            title: '系统提示',
+            content: res.body.errorMessage,
+          })
+        }
+      }, this)
     }
+  },
+
+  mounted() {
+   
   }
 }
 </script>
@@ -270,8 +475,6 @@ export default {
     
   }
 
-  
-
   .manager-speak,.manger-answer {
     .m-h-char {
       background: #EE5151;
@@ -314,6 +517,32 @@ export default {
     }
     .m-h-char {
       background: #FFA800;
+    }
+  }
+  .service {
+    .l-container {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .c-img {
+      order: 2;
+    }
+    .c-msg {
+      order: 1;
+    }
+    .c-m-content {
+      background: #fff;
+    }
+    .c-m-content::after {
+      border-right: none;
+      border-top: .133333rem solid transparent;
+      border-left: .266667rem solid #fff;
+      border-bottom: .133333rem solid transparent;
+      top: .266667rem;
+      left: 6.8rem;
+    }
+    .m-h-char {
+      background: #049DFF;
     }
   }
 }

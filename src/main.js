@@ -5,11 +5,18 @@ import FastClick from 'fastclick'
 import router from './router'
 import App from './App'
 import VueResource from 'vue-resource'
-import { AlertPlugin, LoadingPlugin } from 'vux'
+import Fetch from './fetch'
+import { AlertPlugin, LoadingPlugin, ToastPlugin, ConfirmPlugin  } from 'vux'
+import VueClipboard from 'vue-clipboard2'
+import * as Browser from './assets/js/browser.js';
 
+Vue.use(VueClipboard)
+Vue.use(ToastPlugin)
 Vue.use(VueResource)
 Vue.use(AlertPlugin)
 Vue.use(LoadingPlugin)
+Vue.use(ConfirmPlugin)
+Vue.use(Fetch)
 
 FastClick.attach(document.body)
 

@@ -1,36 +1,59 @@
 export function mqttSession() {
-    var client =new Paho.MQTT.Client("broker.zhibo.hexun.com",89, this.loginInfo.userid+''); 
-      var roomTopic = 'zhibo/room/' + this.roomId,mc=1,klick_logout=false;
-      var dmTopic,admTopic,one_mc=false;
-      var subscribe_options = {
-          qos : 0,
-          onSuccess : OnSubSuccess,
-          onFailure : OnSubFailed
-      };
+    console.log('准备启动mqtt',this.webenv.mqttProt)
+    var vm = this;
+    var client =new Paho.MQTT.Client("broker.zhibo.hexun.com",vm.webenv.mqttProt, this.loginInfo.userid+'');
+    var roomTopic = 'zhibo/room/' + vm.roomId,
+        mc=1,
+        klick_logout=false;
+    var dmTopic,admTopic,one_mc=false;
+    var subscribe_options = {
+        qos : 0,
+        onSuccess : OnSubSuccess,
+        onFailure : OnSubFailed
+    };
       client.onConnectionLost = onConnectionLost;
       client.onMessageArrived = onMessageArrived
       var connect_options = {
           useSSL:false,  
           //useSSL : true,
-          userName : this.loginInfo.userid+'',
+          userName : this.enterInfo.userInfo.userId+'',
           password : this.enterInfo.userInfo.sessionId,
           cleanSession : true,
           onSuccess : onConnect,
           onFailure : OnConnectFailed,
           keepAliveInterval :60
       };
-      console.log(connect_options)
       client.connect(connect_options);
       function onConnect() {
-        console.log('-f')
-          var cc=null,L;
-          /*主题直播版 订阅消息*/
-          client.subscribe(roomTopic, subscribe_options);
+        // console.log('mqtt链接成功')
+        //   var cc=null,L;
+        //   /*主题直播版 订阅消息*/
+        //   client.subscribe(subTopic, subscribe_options);
+         //是个人直播
+        client.subscribe(roomTopic,subscribe_options);
+
+
+        // 订阅普通消息
+        if (vm.enterInfo.userInfo.login) {
+            dmTopic = 'zhibo/chat/dm/' + vm.enterInfo.userInfo.userId + '/#';
+            client.subscribe(dmTopic,subscribe_options);
+        }
+
+        /*
+         1助理，2高级助理，3老师，4主持人
+         订阅私聊提问，问答
+        */
+        if (vm.identity == 'assistant' || vm.identity == 'presenter'||vm.identity == 'teacher') {
+            admTopic = 'zhibo/chat/dm/' + vm.enterInfo.roomInfo.ownerId + '/#';
+            client.subscribe(admTopic,subscribe_options);
+        }
       }
       function OnConnectFailed(responseObject) {
+        console.log('mqtt链接失败')
+        console.log(responseObject)
         if(klick_logout||responseObject.errorCode==6){return}
           setTimeout(function(){client.connect(connect_options);},5000);
-          console.log('f')
+          
       }
 
       function OnSubSuccess(responseObject) {
@@ -43,12 +66,12 @@ export function mqttSession() {
         }
 
       function onConnectionLost(responseObject) {
-        console.log('f3')
+        console.log(responseObject)
           if (responseObject.errorCode !== 0) {
               setTimeout(function(){client.connect(connect_options);},5000);
           }
       }
-      var vm = this;
+     
       var Mess={
           t_s:function(a){
               //'老师发表直播观点',a.type;
@@ -61,6 +84,7 @@ export function mqttSession() {
           },
           u_a:function(a){
               //'学生提问',a.type;
+              console.log('学生提问')
               vm.rightMsg.push(a)
           },
           t_rp:function(a){
@@ -145,15 +169,28 @@ export function mqttSession() {
           },
           kick_user:function(a){
               /*踢出用户*/
+              console.log('提出用户', a)
+              if(a.toKickUserId == vm.enterInfo.userInfo.userId) {
+                vm.isBlack = true;
+                vm.dialogText = a.body
+            }
           },
           kick_user_multi_account:function(a){
               /*单点登陆*/
           },
           blacklist_user:function(a){
             //拉黑用户
+         
+            if(a.toBlackListUserId == vm.enterInfo.userInfo.userId) {
+                vm.isBlack = true;
+                vm.dialogText = a.body
+            }
+           
           },
           delete_message:function(a){
-            //解答问题后删除消息
+            //删除消息
+            console.log('删除消息');
+            vm.delMessage(a)
           },
           close_room:function(a){
               //产品已经下线
@@ -161,10 +198,17 @@ export function mqttSession() {
           silence_user:function(a){
               //console.log('将该用户禁言', a.type);
               //d5.leftMsg(a);
+              console.log('禁言', a)
+              if(a.toSilenceUserId == vm.enterInfo.userInfo.userId) {
+                vm.isBlack = true;
+                vm.dialogText = a.body
+            }
           },
           delete_a:function (a) {
               //删除消息
+              console.log('删除互动',)
               //d5.delMsg('s' + a.toDeleteMessageId);
+              vm.delMessage(a)
           },
           topic_webinar_start:function(a){
               /*一次性*/
@@ -204,6 +248,7 @@ export function mqttSession() {
                       break;
                   case 'popularity':
                       //直播室人气更新
+                      console.log(a)
                       break;
                   case 'webinar_popularity':
                       //更新人气
@@ -212,7 +257,7 @@ export function mqttSession() {
           }
       };
       function onMessageArrived(mqttMsg) {
-    
+        console.log('new msg'); 
         try{
           var a = JSON.parse(mqttMsg.payloadString);
           console.log(a.type); 
