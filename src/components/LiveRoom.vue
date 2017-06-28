@@ -132,7 +132,7 @@
     :editType="editType"
     :identity = "identity"
     ></textarea-group>
-    <textarea-group
+    <wu-edit
     :max="editSpeakMax"
     :placeholder="speakPlaceholder"
     :editShow="editSpeakShow"
@@ -147,7 +147,7 @@
     :identity = "identity"
     :editemojiShow = "editemojiShow"
 
-    ></textarea-group>
+    ></wu-edit>
     <div v-transfer-dom >
       <x-dialog v-model = "isBlack" :dialog-style="{padding:'40px 20px'}">{{dialogText}}</x-dialog>
     </div>
@@ -180,6 +180,7 @@
 import MsgManager from '@/components/Msg-Manager.vue'
 import InputPlaceholder from '@/components/InputPlaceholder.vue'
 import TextareaGroup from '@/components/TextareaGroup.vue'
+import wuEdit from '@/components/wuEdit.vue'
 import {mqttSession} from '@/assets/js/mqttSession.js'
 import webenv from '@/assets/js/config.js'
 import * as Browser from '@/assets/js/browser.js';
@@ -232,7 +233,8 @@ export default {
     TransferDom,
     'msg-manager': MsgManager,
     'input-placeholder':InputPlaceholder,
-    'textarea-group': TextareaGroup
+    'textarea-group': TextareaGroup,
+    'wu-edit': wuEdit,
   },
   directives: {
     TransferDom
@@ -283,8 +285,8 @@ export default {
         }
       }, // 房间信息
       identity: 'user', // 用户身份
-      leftMsg: '',
-      rightMsg: '',
+      leftMsg: [],
+      rightMsg: [],
       historyList:[],
       msgDomInfo: false,
       editType: 'send', //编辑器类型 默认send 发送消息 answer 回复 explan 解答
@@ -355,16 +357,18 @@ export default {
         answerService: iden != "anonymous", // 回复功能
       }
     },
+    leftMsgLen() {
+      return this.leftMsg.length;
+    },
+    rightMsgLen() {
+      return this.rightMsg.length;
+    }
   },
   watch: {
-    leftMsg:{
-      deep: true,
-      handler(newValue,oldValue) {
-        // this.resetScrollerBox('first');   
-        this.reflashBox(newValue,oldValue)
-      }
+    leftMsgLen(newVal,oldVal) {
+      this.reflashBox(newVal,oldVal)
     },
-    rightMsg (val,nal) {
+    rightMsgLen(val,nal) {
       this.reflashBox(val,nal)
     },
     index() {
@@ -640,23 +644,23 @@ export default {
     // reflash
     reflashBox(val, nal) {
       let type= 'last'; // 默认刷新到尾部
-      if(val.length > 0) {
+      if(val > 0) {
           const domArr = this.$refs[`scroller${this.index}`][0].$el.getElementsByClassName('js-msg-container')[0];
           // 保存msgdom信息 用于把他们展示在可视范围内
           if(domArr) {
             this.msgDomInfo = domArr;
           }
         }
-
-      if(val[0]==nal[0] && val[val.length - 1] ==nal[nal.length - 1]) { // 如果收尾相同 则在中间
-       type = 'middle'
-      } else if(val[0]==nal[0] && val[val.length - 1] !=nal[nal.length - 1]){ // 如果首同尾不同 则在尾部
-        type = 'last'
-      } else if (val[0] !=nal[0] && val[val.length - 1] ==nal[nal.length - 1]) {
+      
+      if(val - nal == 1) { // 如果增加1条是发言
+       type = 'last'
+      } else if(val - nal == -1 ){ // 如果减少一条 是删除消息
+        type = 'middle'
+      } else if (val - nal > 1) { // 如果插入多条是获取更多
         type = 'first'
       }
-      console.log(type)
-       this.resetScrollerBox(type);
+
+      this.resetScrollerBox(type);
     },
     // 下拉刷新
     getHistoryMsg() {
@@ -692,7 +696,6 @@ export default {
         setTimeout(() => {
           let top = '0'
           if(this.msgDomInfo) {
-            console.log(type)
             if(type == 'last') {
               top = this.msgDomInfo.scrollHeight - this.$refs[`scroller${this.index}`][0].$el.clientHeight;
             }
@@ -700,9 +703,15 @@ export default {
           if(top < 0) {
             top = 0
           }
-          this.$refs[`scroller${this.index}`][0].reset({
-            top: top
-          })
+          if(type == 'middle') {
+            this.$refs[`scroller${this.index}`][0].reset({
+            })
+          } else {
+            this.$refs[`scroller${this.index}`][0].reset({
+              top: top
+            })
+          }
+          
           // this.pullupEnabled && this.$refs.scroller.enablePullup()
           this.pullStatus.pulldownStatus = 'default';
         }, 10)

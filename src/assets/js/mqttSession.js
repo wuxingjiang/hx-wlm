@@ -73,6 +73,9 @@ export function mqttSession() {
       }
      
       var Mess={
+          t_ss: function(a) {
+
+          },
           t_s:function(a){
               //'老师发表直播观点',a.type;
               console.log('老师发表直播观点')

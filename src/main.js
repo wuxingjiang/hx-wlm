@@ -8,7 +8,7 @@ import VueResource from 'vue-resource'
 import Fetch from './fetch'
 import { AlertPlugin, LoadingPlugin, ToastPlugin, ConfirmPlugin  } from 'vux'
 import VueClipboard from 'vue-clipboard2'
-import * as Browser from './assets/js/browser.js';
+
 
 Vue.use(VueClipboard)
 Vue.use(ToastPlugin)

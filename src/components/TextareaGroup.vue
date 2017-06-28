@@ -16,15 +16,6 @@
               :max="max"
               v-model="editValue"
               ></x-textarea>
-              <div
-              id="editor-trigger"
-              ref="quillEdit"
-              :class="['e-t-g-t-c-edit', editType == 'send'?'':'e-t-g-t-c-edit-other']"
-              v-if="type === 'wuEdit'"
-              v-model = "editValue"
-              >
-              </div>
-
               <input-count
               v-if="question"
               :maxLength="max"
@@ -40,19 +31,7 @@
             :length = "editLength"
             class="e-t-g-t-f-count">
             </input-count>
-            <check-icon class="e-t-g-t-f-type" v-else v-model="isQuestion">向老师提问</check-icon>
             <div class="e-t-g-t-f-group">
-              <div v-if="type === 'wuEdit'" class="e-t-g-t-f-g-smile">
-                <x-button
-                  class="f-g-b-emoji"
-                  @click.native="setEmojiShow"
-                  plain>
-                    <svg class="icon e-xiaolian" aria-hidden="true">
-                        <use v-if="!editemojiShow" xlink:href="#icon-xiaolian"></use>
-                        <use v-else xlink:href="#icon-jianpan"></use>
-                    </svg>
-                  </x-button>
-              </div>
               <div class="e-t-g-t-f-g-send">
                 <x-button
                 :class="['f-g-b-btn', !disabled?'f-g-b-send':'f-g-b-disabled']"
@@ -63,40 +42,7 @@
                 </x-button>
               </div>
             </div>
-          </div>
-
-          <swiper 
-            height="150px"
-            :dots-position="'center'"
-            v-if="editemojiShow">
-            <swiper-item
-             class="emoji-container"
-             v-for="(item, index) in emojiArr"
-             :key='index'
-             >
-              <flexbox
-               wrap="wrap"
-               :gutter="0"
-               justify="flex-start"
-               align="center">
-                <flexbox-item
-                class="emoji-list"
-                v-for="(emoji,i) in item"
-                :key="i"
-                :span="1/8"
-                @click.native="eventChose(i+1)"
-                >
-                  <img  :src="`http://imgzq.hexun.com/chatRoom/static/ff/${i+1}.png`" alt="">
-                </flexbox-item>
-                <flexbox-item v-if="needDel">
-                  <svg @click.native="delText" class="icon e-xiaolian" aria-hidden="true">
-                      <use xlink:href="#icon-xiaolian"></use>
-                  </svg>
-                </flexbox-item>
-              </flexbox>
-              
-             </swiper-item>
-          </swiper>      
+          </div>     
           <input-placeholder 
           v-if="placeholderShow" 
           :placeholder='placeholder' 
@@ -118,10 +64,7 @@ import {
   Popup,
   TransferDom,
   XTextarea ,
-  WechatEmotion as Emotion,
   Divider,
-  Swiper,
-  SwiperItem,
   Flexbox,
   FlexboxItem,
   } from 'vux'
@@ -138,10 +81,7 @@ export default {
     XButton,
     Popup,
     XTextarea,
-    Emotion,
     Divider,
-    Swiper,
-    SwiperItem,
     Flexbox,
     FlexboxItem,
     CheckIcon,
@@ -153,7 +93,6 @@ export default {
       msg: 'TextAreaGroup',
       editLength:'',
       editValue: this.value,
-      quill: '',
       needDel: '', // emoji是否需要删除
       editDom: '',
       isQuestion: false,
@@ -179,44 +118,15 @@ export default {
     disabled() {
       return !this.editLength;
     },
-    emojiArr() {
-      let emoji = new Array(64);
-      let len = emoji.length;
-      let gap = 24;
-      const arr = []
-      for(let i = 0; i <= len; i+= gap) {
-        console.log(i);
-        arr.push(emoji.slice(i, i + gap))
-      }
-      return arr;
-    },
-    question() {//显示向老师提问按钮
-      return (this.identity == 'user' || this.identity =='vipUser') && this.editType == 'send'
-    }, 
   },
   watch: {
-    editValue(val) {
+    editValue(val, oldVal) {
       const len = val.length;
       if(this.type === 'textArea') {
         this.editLength = len;
       }
-      if(!val && this.type == 'wuEdit') {
-        this.resetEditDom();
-      }
       this.$emit('input', val)
     },
-    editLength(val) {
-      if(val == '0') {
-        console.log('dd')
-      }
-    },
-    editemojiShow(val) {
-      if(!val) {
-        if(this.quill) {
-          this.quill.focus()
-        }
-      }
-    }
   },
   methods: {
     eventClose() {
@@ -227,72 +137,7 @@ export default {
       this.$emit('resetEdit');
 
     },
-    resetEditDom() {
-      if(!this.editDom) {
-          this.editDom = this.$refs.quillEdit.getElementsByClassName('ql-editor')[0];
-      } else {
-          this.editDom.innerHTML = '';
-      }
-      this.$emit('setEditemojiShow', false)
-    },
-    setEditIndent() {
-      if(!this.editDom) {
-        return false;
-      }
-      if(this.editType != 'send') {
-      const width = document.getElementById('InputPlaceholder').clientWidth;
-      const htmlF = document.documentElement.getBoundingClientRect().width / 6.1;
-      console.log(width / htmlF)
-      this.editDom.style.textIndent = `${width / htmlF}rem`;
-      } else {
-        this.editDom.style.textIndent = `0em`;
-      }
-    },
-    setEmojiShow() {
-      this.$emit('setEditemojiShow', !this.editemojiShow)
-    },
-    changeText(){
-      this.innerText = this.$el.innerHTML;
-      this.$emit('input',this.innerText);
-    },
-    eventGetFours() {
-      console.log('get focus');
-      if(this.type != 'textArea') {
-        this.quill.setSelection(this.editLength, 1);
-        this.quill.focus();
-        this.$refs.editGroup.$el.scrollIntoView(true);
-       
-      }
-      
-    },
-    delText() {
-      const range = this.quill.getSelection()
-      let index = 0;
-      if(range) {
-        index = range.index
-      }
-      this.quill.deleteText(index, 1);
-    },
-    eventChose(e) {
-      const range = this.quill.getSelection()
-      let index = 0;
-      if(range) {
-        index = range.index
-      } else {
-        index = this.editLength
-      }
-      // range.collapse(true);
-      this.quill.insertEmbed(index, 'image', `http://imgzq.hexun.com/chatRoom/static/ff/${e}.gif`);
-      if(range) {
-        this.quill.setSelection(index + 1, range.length)
-      }
-    },
-    eventShow() {
-      if(this.insetPlacehold) {
-        console.log('插入',this.placeholderShow)
-         this.quill.insertEmbed(0, 'text', this.placeholder);
-      }
-    },
+    
   // 发送按钮
     eventSend() {
       this.$emit('sendBtnMethod', {
@@ -304,40 +149,7 @@ export default {
     
   },
   mounted() {
-    // console.log('dd')
-    if(this.type == 'wuEdit') {
-      this.quill = new Quill('#editor-trigger', {
-        theme: 'bubble'
-      });
-      this.quill.on('text-change', (delta, oldDelta, source) => {
-        const ops = this.quill.getContents().ops;
-        const range = this.quill.getSelection();
-        let str = '';
-        let len = 0;
-        // console.log( this.quill.getContents())
-        for(let i in ops) {
-          // console.log(typeof ops[i].insert === 'string')
-          if(typeof ops[i].insert === 'string') {
-          //  console.log('str')
-            str += ops[i].insert;
-            len += ops[i].insert.trim().length
-          } else if(typeof ops[i].insert === 'object')  {
-          str+=`[face]${ops[i].insert.image}[/face]`;
-          len++
-          }
-        }
-        this.editValue = str;
-        this.editLength = len;
-      });
-
-      
-      this.quill.focus();
-      if(this.$refs.quillEdit) {
-          this.editDom = this.$refs.quillEdit.getElementsByClassName('ql-editor')[0];
-          this.resetEditDom();
-      }
-    }
-  
+    // console.log('dd'
   },
 }
 </script>
