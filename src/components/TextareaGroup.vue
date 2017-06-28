@@ -4,11 +4,11 @@
       <popup 
       v-model="selfEditShow"
       @on-hide="eventClose"
-      @on-show="eventShow"
+     
       >
         <group :title="title" ref="editGroup" class="edit-theme-group">
           <div class="edit-theme-group-textarea">
-            <div  class="e-t-g-t-con" @click="eventGetFours">
+            <div  class="e-t-g-t-con" >
               <x-textarea 
               v-if="type === 'textArea'"
               :height="100"
@@ -16,17 +16,11 @@
               :max="max"
               v-model="editValue"
               ></x-textarea>
-              <input-count
-              v-if="question"
-              :maxLength="max"
-              :length = "editLength"
-              class="e-t-g-t-f-count input-count-user">
-              </input-count>
+            
             </div>
           <div>
           <div class="e-t-g-t-footer">
             <input-count
-            v-if="!question"
             :maxLength="max"
             :length = "editLength"
             class="e-t-g-t-f-count">
@@ -130,7 +124,6 @@ export default {
   },
   methods: {
     eventClose() {
-      
       this.editValue = "";
       this.isQuestion = false;
       this.$emit('setEditShow', false);

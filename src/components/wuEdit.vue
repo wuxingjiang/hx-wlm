@@ -9,16 +9,7 @@
         <group :title="title" ref="editGroup" class="edit-theme-group">
           <div class="edit-theme-group-textarea">
             <div  class="e-t-g-t-con" @click="eventGetFours">
-
-              <div
-              id="editor-trigger"
-              ref="quillEdit"
-              :class="['e-t-g-t-c-edit', editType == 'send'?'':'e-t-g-t-c-edit-other']"
-              v-if="type === 'wuEdit'"
-              v-model = "editValue"
-              >
-              </div>
-              <div id="editorElem" style="text-align:left"></div>
+              <textarea id="editorElem" style="text-align:left"></textarea>
               <input-count
               v-if="question"
               :maxLength="max"
@@ -153,6 +144,7 @@ export default {
       needDel: '', // emoji是否需要删除
       editDom: '',
       isQuestion: false,
+      editor: '',
     }
   },
   computed: {
@@ -210,11 +202,11 @@ export default {
       }
     },
     editemojiShow(val) {
-      if(!val) {
-        if(this.quill) {
-          this.quill.focus()
-        }
-      }
+      // if(!val) {
+      //   if(this.quill) {
+      //     this.quill.focus()
+      //   }
+      // }
     }
   },
   methods: {
@@ -265,32 +257,37 @@ export default {
       
     },
     delText() {
-      const range = this.quill.getSelection()
-      let index = 0;
-      if(range) {
-        index = range.index
-      }
-      this.quill.deleteText(index, 1);
+      // const range = this.quill.getSelection()
+      // let index = 0;
+      // if(range) {
+      //   index = range.index
+      // }
+      // this.quill.deleteText(index, 1);
     },
-    eventChose(e) {
-      const range = this.quill.getSelection()
-      let index = 0;
-      if(range) {
-        index = range.index
-      } else {
-        index = this.editLength
-      }
-      // range.collapse(true);
-      this.quill.insertEmbed(index, 'image', `http://imgzq.hexun.com/chatRoom/static/ff/${e}.gif`);
-      if(range) {
-        this.quill.setSelection(index + 1, range.length)
-      }
+    eventChose(val) {
+      // const range = this.quill.getSelection()
+      // let index = 0;
+      // if(range) {
+      //   index = range.index
+      // } else {
+      //   index = this.editLength
+      // }
+      // // range.collapse(true);
+      // // this.quill.insertEmbed(index, 'image', `http://imgzq.hexun.com/chatRoom/static/ff/${e}.gif`);
+      // if(range) {
+      //   this.quill.setSelection(index + 1, range.length)
+      // }
+      //--------------------------------------------------------//
+      console.log(this.editor.command);
+      let e = event;
+      console.log(event) 
+      this.editor.command('InsertImage', false, `http://imgzq.hexun.com/chatRoom/static/ff/${val}.gif`, event)
     },
     eventShow() {
-      if(this.insetPlacehold) {
-        console.log('插入',this.placeholderShow)
-         this.quill.insertEmbed(0, 'text', this.placeholder);
-      }
+      // if(this.insetPlacehold) {
+      //   console.log('插入',this.placeholderShow)
+      //    this.quill.insertEmbed(0, 'text', this.placeholder);
+      // }
     },
   // 发送按钮
     eventSend() {
@@ -338,12 +335,9 @@ export default {
     // }
     
 
-    var editor = new E('#editorElem')
-    editor.customConfig.onchange = (html) => {
-      this.editorContent = html
-    }
-    editor.customConfig.menus = []
-    editor.create()
+    this.editor = new _$$_E('editorElem')
+
+    this.editor.init()
   },
 }
 </script>
