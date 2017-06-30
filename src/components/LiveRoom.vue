@@ -132,7 +132,7 @@
     :editType="editType"
     :identity = "identity"
     ></textarea-group>
-    <wu-edit
+    <content-group
     :max="editSpeakMax"
     :placeholder="speakPlaceholder"
     :editShow="editSpeakShow"
@@ -147,7 +147,7 @@
     :identity = "identity"
     :editemojiShow = "editemojiShow"
 
-    ></wu-edit>
+    ></content-group>
     <div v-transfer-dom >
       <x-dialog v-model = "isBlack" :dialog-style="{padding:'40px 20px'}">{{dialogText}}</x-dialog>
     </div>
@@ -180,7 +180,7 @@
 import MsgManager from '@/components/Msg-Manager.vue'
 import InputPlaceholder from '@/components/InputPlaceholder.vue'
 import TextareaGroup from '@/components/TextareaGroup.vue'
-import wuEdit from '@/components/wuEdit.vue'
+import contentGroup from '@/components/contentGroup.vue'
 import {mqttSession} from '@/assets/js/mqttSession.js'
 import webenv from '@/assets/js/config.js'
 import * as Browser from '@/assets/js/browser.js';
@@ -234,7 +234,7 @@ export default {
     'msg-manager': MsgManager,
     'input-placeholder':InputPlaceholder,
     'textarea-group': TextareaGroup,
-    'wu-edit': wuEdit,
+    'content-group': contentGroup,
   },
   directives: {
     TransferDom
@@ -324,7 +324,7 @@ export default {
         islogin:'http://reg.tool.hexun.com/wapreg/checklogin.aspx?format=json&encode=utf-8',//判断登陆
         h5logurl: 'https://reg.hexun.com/h5/login.aspx?regtype=5&gourl=' + escape(window.location.href),
         isBindWeChat: 'https://regtool.hexun.com/wapreg/CheckBindWechat.aspx', // 是否绑定微信
-        bindWeChat: `https://reg.hexun.com/bindweixin.aspx?gourl=${escape(window.location.href)}`,
+        bindWeChat: `https://reg.hexun.com/bindweixin.aspx?gourl=${escape(window.location.href)}&fromhost=weixin`,
       }
     },
     headerShow() {
@@ -937,10 +937,11 @@ export default {
     
     // 是否登录
     isLogin() {
+      // 如果没有登录
        if(this.loginInfo.islogin === 'False') {
-        this.checkLogin();
+        this.checkLogin(); // 去登陆
         return false;
-      } else if(!this.weChatLogin) {
+      } else if(!this.weChatLogin) { // 判断是否绑定微信
         if(this.isWechat) {
           this.checkBindWechat();
         }
@@ -997,6 +998,9 @@ export default {
     };
     const init = Promise.all([this.getloginInfo(),this.getRoomInfo()]).then(
       success => { 
+        if(this.isWechat) {
+          this.isLogin();
+        }
         this.getFollowInfo();
         this.getLeftMsg();
         this.getRightMsg();
@@ -1006,9 +1010,7 @@ export default {
       }
     )
 
-    if(this.isWechat) {
-      this.isLogin();
-    }
+    
     
   },
 }

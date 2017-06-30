@@ -3,13 +3,19 @@
     <div v-transfer-dom>
       <popup 
       v-model="selfEditShow"
+      position = top
       @on-hide="eventClose"
       @on-show="eventShow"
       >
         <group :title="title" ref="editGroup" class="edit-theme-group">
           <div class="edit-theme-group-textarea">
             <div  class="e-t-g-t-con" @click="eventGetFours">
-              <textarea id="editorElem" style="text-align:left"></textarea>
+              <wu-editor 
+              ref = 'wuEditor'
+              style="text-align:left"
+              v-model = "editValue"
+              :insetPlacehold="insetPlacehold"
+              ></wu-editor>
               <input-count
               v-if="question"
               :maxLength="max"
@@ -50,6 +56,7 @@
             </div>
           </div>
 
+          
           <swiper 
             height="150px"
             :dots-position="'center'"
@@ -94,7 +101,10 @@
   </div>
 </template>
 <script>
+import {BBcode} from '../assets/js/BBcode.js'
+import Delta from 'quill-delta'
 import InputCount from '@/components/InputCount.vue'
+import wuEditor from '@/components/wuEditor.vue'
 import InputPlaceholder from '@/components/InputPlaceholder.vue'
 import CheckIcon from '@/components/CheckIcon.vue'
 import { 
@@ -134,6 +144,7 @@ export default {
     CheckIcon,
     'input-count': InputCount,
     'input-placeholder':InputPlaceholder,
+    'wu-editor': wuEditor
   },
   data() {
     return {
@@ -150,13 +161,16 @@ export default {
   computed: {
     placeholderShow() {
       const arr = ['wuEdit', 'textArea']
-
       return !this.editLength && arr.indexOf(this.type) != -1;
     },
     insetPlacehold() {
        const arr = ['send']
-
-      return  arr.indexOf(this.editType) == -1;
+       if(arr.indexOf(this.editType) == -1) {
+         return  this.placeholder;
+       } else {
+         return false
+       }
+     
     },
     issend() {
       return !!this.editValue.trim();
@@ -188,9 +202,14 @@ export default {
       if(this.type === 'textArea') {
         this.editLength = len;
       }
-      if(!val && this.type == 'wuEdit') {
-        this.resetEditDom();
+      if(this.type == 'wuEdit') {
+        const imgTest = /<img(.+?)src=['|"](.+?)>/ig;
+        const repStr = this.editValue.replace(imgTest, '0')
+        const content = document.createElement('div');
+        content.innerHTML = repStr;
+        this.editLength = content.innerText.trim().length
       }
+       
       if(len > this.max) {
         this.editValue = oldVal
       }
@@ -202,29 +221,15 @@ export default {
       }
     },
     editemojiShow(val) {
-      // if(!val) {
-      //   if(this.quill) {
-      //     this.quill.focus()
-      //   }
-      // }
     }
   },
   methods: {
     eventClose() {
-      
       this.editValue = "";
       this.isQuestion = false;
       this.$emit('setEditShow', false);
       this.$emit('resetEdit');
 
-    },
-    resetEditDom() {
-      if(!this.editDom) {
-          this.editDom = this.$refs.quillEdit.getElementsByClassName('ql-editor')[0];
-      } else {
-          this.editDom.innerHTML = '';
-      }
-      this.$emit('setEditemojiShow', false)
     },
     setEditIndent() {
       if(!this.editDom) {
@@ -247,47 +252,16 @@ export default {
       this.$emit('input',this.innerText);
     },
     eventGetFours() {
-      // console.log('get focus');
-      // if(this.type != 'textArea') {
-      //   this.quill.setSelection(this.editLength, 1);
-      //   this.quill.focus();
-      //   this.$refs.editGroup.$el.scrollIntoView(true);
-       
-      // }
       
     },
     delText() {
-      // const range = this.quill.getSelection()
-      // let index = 0;
-      // if(range) {
-      //   index = range.index
-      // }
-      // this.quill.deleteText(index, 1);
     },
     eventChose(val) {
-      // const range = this.quill.getSelection()
-      // let index = 0;
-      // if(range) {
-      //   index = range.index
-      // } else {
-      //   index = this.editLength
-      // }
-      // // range.collapse(true);
-      // // this.quill.insertEmbed(index, 'image', `http://imgzq.hexun.com/chatRoom/static/ff/${e}.gif`);
-      // if(range) {
-      //   this.quill.setSelection(index + 1, range.length)
-      // }
-      //--------------------------------------------------------//
-      console.log(this.editor.command);
       let e = event;
-      console.log(event) 
-      this.editor.command('InsertImage', false, `http://imgzq.hexun.com/chatRoom/static/ff/${val}.gif`, event)
+      this.$refs.wuEditor.$emit('insertImg', val)
+      // this.editor.command('InsertImage', false, `http://imgzq.hexun.com/chatRoom/static/ff/${val}.gif`, event)
     },
     eventShow() {
-      // if(this.insetPlacehold) {
-      //   console.log('插入',this.placeholderShow)
-      //    this.quill.insertEmbed(0, 'text', this.placeholder);
-      // }
     },
   // 发送按钮
     eventSend() {
@@ -299,45 +273,7 @@ export default {
   created() {
     
   },
-  mounted() {
-    // console.log('dd')
-    // if(this.type == 'wuEdit') {
-    //   this.quill = new Quill('#editor-trigger', {
-    //     theme: 'bubble'
-    //   });
-    //   this.quill.on('text-change', (delta, oldDelta, source) => {
-    //     const ops = this.quill.getContents().ops;
-    //     const range = this.quill.getSelection();
-    //     let str = '';
-    //     let len = 0;
-    //     // console.log( this.quill.getContents())
-    //     for(let i in ops) {
-    //       // console.log(typeof ops[i].insert === 'string')
-    //       if(typeof ops[i].insert === 'string') {
-    //       //  console.log('str')
-    //         str += ops[i].insert;
-    //         len += ops[i].insert.trim().length
-    //       } else if(typeof ops[i].insert === 'object')  {
-    //       str+=`[face]${ops[i].insert.image}[/face]`;
-    //       len++
-    //       }
-    //     }
-    //     this.editValue = str;
-    //     this.editLength = len;
-    //   });
-
-      
-    //   this.quill.focus();
-    //   if(this.$refs.quillEdit) {
-    //       this.editDom = this.$refs.quillEdit.getElementsByClassName('ql-editor')[0];
-    //       this.resetEditDom();
-    //   }
-    // }
-    
-
-    this.editor = new _$$_E('editorElem')
-
-    this.editor.init()
+  mounted(){
   },
 }
 </script>
@@ -361,14 +297,15 @@ export default {
     padding: .266667rem;
     overflow: auto;
     position: relative;
-    .e-t-g-t-c-edit {
-      height: 100px;
-      text-align: left;
-    }
+    text-align: left;
+    height: 100px;
     .input-count-user {
       position: absolute;
       right: 0;
       bottom: 0;
+    }
+    .wuEditor-mobile-txt {
+      height:100%
     }
   }
 

@@ -4,7 +4,6 @@
       <popup 
       v-model="selfEditShow"
       @on-hide="eventClose"
-     
       >
         <group :title="title" ref="editGroup" class="edit-theme-group">
           <div class="edit-theme-group-textarea">
