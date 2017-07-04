@@ -10,7 +10,6 @@ const Fetch = {};
     Vue.$vux.loading.show({
         text: 'Loading'
       })
-
     Vue.http.jsonp(url,{params}).then(
       success => {
         Vue.$vux.loading.hide()

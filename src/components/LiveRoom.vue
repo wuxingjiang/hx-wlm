@@ -132,7 +132,8 @@
     :editType="editType"
     :identity = "identity"
     ></textarea-group>
-    <content-group
+    <quill-edit
+    ref="quillEditor"
     :max="editSpeakMax"
     :placeholder="speakPlaceholder"
     :editShow="editSpeakShow"
@@ -147,7 +148,7 @@
     :identity = "identity"
     :editemojiShow = "editemojiShow"
 
-    ></content-group>
+    ></quill-edit>
     <div v-transfer-dom >
       <x-dialog v-model = "isBlack" :dialog-style="{padding:'40px 20px'}">{{dialogText}}</x-dialog>
     </div>
@@ -180,7 +181,8 @@
 import MsgManager from '@/components/Msg-Manager.vue'
 import InputPlaceholder from '@/components/InputPlaceholder.vue'
 import TextareaGroup from '@/components/TextareaGroup.vue'
-import contentGroup from '@/components/contentGroup.vue'
+
+import quillEdit from '@/components/quillEdit.vue'
 import {mqttSession} from '@/assets/js/mqttSession.js'
 import webenv from '@/assets/js/config.js'
 import * as Browser from '@/assets/js/browser.js';
@@ -234,7 +236,7 @@ export default {
     'msg-manager': MsgManager,
     'input-placeholder':InputPlaceholder,
     'textarea-group': TextareaGroup,
-    'content-group': contentGroup,
+    'quill-edit':quillEdit
   },
   directives: {
     TransferDom
@@ -484,6 +486,7 @@ export default {
        return false
      }
       this.editSpeakShow = val;
+      this.$refs.quillEditor.$emit('autoFocus')
     },
     setChoseAnswershow(val) {
       this.choseAnswershow = val;
@@ -625,7 +628,6 @@ export default {
 
       this.$Fetch(this.interface.api.sendMessage, params, (res)=> {
         if(res.body.resultKey == 'ok') {
-          this.setEditSpeakShow(false);
           this.editSpeakValue = '';
           this.$vux.toast.show({
             type: 'success',

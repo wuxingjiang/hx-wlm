@@ -425,10 +425,14 @@ export default {
     display: flex;
     justify-content: flex-start;
 
+    span {
+      white-space: nowrap;
+    }
+
     .m-h-char {
-      padding: 0 8px;
-      margin: 0 5px;
-      border-radius: 100px;
+      padding: 0 .106667rem;
+      margin: 0 .066667rem;
+      border-radius: 1.333333rem;
       color: #fff;
       background: #EE5151;
     }
