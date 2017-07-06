@@ -1,6 +1,6 @@
 <template>
-  <div id="TextareaGroup" class="TextareaGroup">
-    <div v-transfer-dom>
+  <div id="TextareaGroup" class="">
+    <div v-transfer-dom class="TextareaGroup">
       <popup 
       v-model="selfEditShow"
       position = top
@@ -85,9 +85,9 @@
                 v-for="(emoji,i) in item"
                 :key="i"
                 :span="1/8"
-                @click.native="eventChose(i+1)"
+                @click.native="eventChose(emoji+1)"
                 >
-                  <img  :src="`http://imgzq.hexun.com/chatRoom/static/ff/${i+1}.png`" alt="">
+                  <img  :src="`http://imgzq.hexun.com/chatRoom/static/ff/${emoji+1}.png`" alt="">
                 </flexbox-item>
                 <flexbox-item v-if="needDel">
                   <svg @click.native="delText" class="icon e-xiaolian" aria-hidden="true">
@@ -181,7 +181,7 @@ export default {
       return !this.editLength;
     },
     emojiArr() {
-      let emoji = new Array(64);
+      let emoji = new Array(64).toString().split(',').map((item,index) => {return index});
       let len = emoji.length;
       let gap = 24;
       const arr = []
@@ -223,7 +223,6 @@ export default {
   },
   methods: {
     eventClose() {
-      
       this.editValue = "";
       this.isQuestion = false;
       this.$emit('setEditShow', false);
@@ -331,6 +330,10 @@ export default {
           len++
           }
         }
+        if(len >= this.max) {
+          this.quill.setContents(oldDelta);
+          this.quill.setSelection(this.editLength, 1);
+        }
         this.editValue = str;
         this.editLength = len;
       });
@@ -345,9 +348,14 @@ export default {
 }
 </script>
 <style lang="less">
-.edit-theme-group {
+.TextareaGroup {
   text-align: center;
-
+  .weui-cells:before {
+    border: none;
+  }
+  [class*=" weui-icon-"]:before {
+    margin-left: 0;
+  }
   .weui-cells__title {
     font-size: 16px;
     color: #000;
@@ -370,15 +378,15 @@ export default {
     }
     .input-count-user {
       position: absolute;
-      right: 0;
-      bottom: 0;
+      right: .133333rem;
+      bottom: .133333rem;
     }
   }
 
   .e-t-g-t-footer {
     display: flex;
     justify-content: space-between;
-    padding: .266667rem;
+    padding: .266667rem 0;
   }
 
   .e-t-g-t-f-count {

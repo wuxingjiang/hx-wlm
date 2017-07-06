@@ -2,7 +2,7 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" >
 <svg xmlns="http://www.w3.org/2000/svg">
 <metadata>
-Created by FontForge 20120731 at Fri Jun 23 15:43:38 2017
+Created by FontForge 20120731 at Thu Jul  6 17:37:24 2017
  By admin
 </metadata>
 <defs>
@@ -19,7 +19,7 @@ Created by FontForge 20120731 at Fri Jun 23 15:43:38 2017
     bbox="0 -128 1024 896"
     underline-thickness="0"
     underline-position="0"
-    unicode-range="U+0078-E631"
+    unicode-range="U+0078-E656"
   />
 <missing-glyph 
  />
@@ -49,5 +49,8 @@ q9 0 16 -7t7 -16v-1v-424q0 -62 -44.5 -103.5t-106.5 -41.5h-625q-61 0 -104.5 41.5t
     <glyph glyph-name="jianpan" unicode="&#xe624;" 
 d="M512 -128q-138 0 -256 69t-187 187t-69 256t69 256t187 187t256 69t256 -69t187 -187t69 -256t-69 -256t-187 -187t-256 -69zM512 864q-129 0 -239.5 -65t-175.5 -175.5t-65 -239.5t65 -239.5t175.5 -175.5t239.5 -65t239.5 65t175.5 175.5t65 239.5t-65 239.5
 t-175.5 175.5t-239.5 65zM211 608h83v-83h-83v83zM384 608h83v-83h-83v83zM557 608h83v-83h-83v83zM730 608h83v-83h-83v83zM211 429h83v-83h-83v83zM384 429h83v-83h-83v83zM557 429h83v-83h-83v83zM730 429h83v-83h-83v83zM211 243h595v-83h-595v83z" />
+    <glyph glyph-name="guanbi" unicode="&#xe656;" 
+d="M1012 -56l-441 441l438 437q12 13 12 30.5t-12 29.5t-29.5 12t-30.5 -12l-437 -438l-440 440q-12 12 -29.5 12t-30 -12.5t-12.5 -30t12 -29.5l440 -440l-436 -436q-12 -12 -12 -29.5t12 -30t29.5 -12.5t29.5 13l436 436l441 -441q12 -12 29.5 -12t30 12.5t12.5 30
+t-12 29.5z" />
   </font>
 </defs></svg>

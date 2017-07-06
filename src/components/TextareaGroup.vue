@@ -149,6 +149,10 @@ export default {
 .edit-theme-group {
   text-align: center;
 
+  .weui-cells:before {
+    border: none;
+  }
+  
   .weui-cells__title {
     font-size: 16px;
     color: #000;
@@ -179,7 +183,7 @@ export default {
   .e-t-g-t-footer {
     display: flex;
     justify-content: space-between;
-    padding: .266667rem;
+    padding: .266667rem 0;
   }
 
   .e-t-g-t-f-count {

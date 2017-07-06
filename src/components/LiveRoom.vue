@@ -22,7 +22,7 @@
               </span>
             </p>
         </div>
-        <div class="h-like" @click="followtearch">
+        <div v-if="!isWechat" :class="['h-like', likeInfo !== '关注'?'has-like':'']" @click="followtearch">
           <svg v-if="likeInfo === '关注'" class="icon l-btn" aria-hidden="true">
             <use xlink:href="#icon-jia"></use>
           </svg>
@@ -67,6 +67,7 @@
             <div class="js-msg-container">
               <divider v-if="index == '0' && noMore">没有更多数据</divider>
               <msg-manager
+              class="left"
               v-for="(msg, num) in leftMsg"
               v-if="item === '直播观点'"
               :authority = "authority"
@@ -80,6 +81,7 @@
               <msg-manager
             
               v-for="(msg, num) in rightMsg"
+              class="right"
               v-if="item === '互动交流'"
               :authority = "authority"
               :info="msg"
@@ -97,8 +99,8 @@
       </swiper>
     </div>
 
-    <flexbox class="footer vux-NaNrem-t">
-      <flexbox-item :span="85/100">
+    <flexbox class="footer vux-1px-t">
+      <flexbox-item :span="90/100">
         <x-button 
         class="f-btn-edit" 
         plain
@@ -108,7 +110,7 @@
           <input-placeholder :placeholder="speakPlaceholder"></input-placeholder>
         </x-button>
       </flexbox-item>
-      <flexbox-item :span="15/100">
+      <flexbox-item :span="10/100">
         <x-button
         class="f-btn-emoji"
         @click.native="eventOpenEmoji"
@@ -174,6 +176,13 @@
           </div>
       </popup>
     </div>
+    <buy-vip 
+    v-if="isNoVip"
+    :roomId="roomId"></buy-vip>
+    <bind-phone 
+    v-if="bindPhoneShow"
+    :isWechat="isWechat"
+    @bindSuccess="bindPhoneSuccess"></bind-phone>
   </div>
 </template>
 
@@ -181,7 +190,8 @@
 import MsgManager from '@/components/Msg-Manager.vue'
 import InputPlaceholder from '@/components/InputPlaceholder.vue'
 import TextareaGroup from '@/components/TextareaGroup.vue'
-
+import BuyVip from '@/components/BuyVip.vue'
+import BindPhone from '@/components/BindPhone.vue'
 import quillEdit from '@/components/quillEdit.vue'
 import {mqttSession} from '@/assets/js/mqttSession.js'
 import webenv from '@/assets/js/config.js'
@@ -207,7 +217,7 @@ import {
   AjaxPlugin,
   Divider,
   XDialog,
-  TransferDom
+  TransferDom,
   } from 'vux'
 
 const list = () => ['直播观点', '互动交流']
@@ -236,7 +246,9 @@ export default {
     'msg-manager': MsgManager,
     'input-placeholder':InputPlaceholder,
     'textarea-group': TextareaGroup,
-    'quill-edit':quillEdit
+    'quill-edit':quillEdit,
+    'buy-vip': BuyVip,
+    'bind-phone':BindPhone
   },
   directives: {
     TransferDom
@@ -298,31 +310,14 @@ export default {
       choseExplainshow: false,
       containerHeight: 439/2 +'px',
       weChatLogin: false, // 是否绑定微信
+      isNoVip: false,
+      bindPhoneShow: false, // 绑定手机dialog
     }
   },
   computed: {
     interface() {
       let apidomain= this.webenv.apiHost;
       return {
-        api:{
-          getRoomInfo:apidomain+'api/room/get_room_info?roomId=',//获取房间信息
-          getFollowInfo:'http://follow.zq.hexun.com/relation/isattention.do',//获取是否关注
-          followtearch:'http://follow.zq.hexun.com/relation/add.do',//关注老师
-          getTearchInfo:'http://partner.px.hexun.com/api/partner/get_partnershow_info',//合作者信息
-          getLeftMsg:apidomain+'api/room/get_teacher_messages',//获取直播观点
-          getRightMsg:apidomain+'api/room/get_users_messages',//获取互动交流
-          getRoomInfo:apidomain+'api/room/enter_room',//获取互动交流
-          getHistoryList:apidomain+'api/room/get_room_history',//获取历史列表
-          setRoomTopic: `${apidomain + 'api/room/management/set_room_topic'}`, // 设置主题
-          sendMessage: `${apidomain}/api/room/send_message`, // 发送消息
-          delMessage: `${apidomain}api/room/management/delete_message`, // 删除消息
-          setImMsg: `${apidomain}api/room/management/set_message_important`, // 设置重要观点
-          addUserBlackList: `${apidomain}api/room/management/add_user_blacklist`, // 拉黑用户
-          kickUser: `${apidomain}api/room/management/kick_user`, // 踢人
-          silenceUser: `${apidomain}api/room/management/silence_user`, // 禁言
-
-
-        },
         islogin:'http://reg.tool.hexun.com/wapreg/checklogin.aspx?format=json&encode=utf-8',//判断登陆
         h5logurl: 'https://reg.hexun.com/h5/login.aspx?regtype=5&gourl=' + escape(window.location.href),
         isBindWeChat: 'https://regtool.hexun.com/wapreg/CheckBindWechat.aspx', // 是否绑定微信
@@ -336,6 +331,7 @@ export default {
     },
      // 是否在微信
     isWechat(){
+      return true;
       const browser = new Browser.Browser().browser;
       return browser == 'Wechat';
     },
@@ -423,6 +419,7 @@ export default {
       }
       
     },
+    // 解答
     explainMethod(params) {
       this.answerWho = {
         name: params.name,
@@ -430,6 +427,7 @@ export default {
       };
       this.setChoseExplainshow(true);
     },
+    // 直接展开emoji
     eventOpenEmoji () {
       this.setEditSpeakShow(true);
       this.setEditemojiShow(true);
@@ -482,11 +480,22 @@ export default {
       this.editThemeShow = val;
     },
     setEditSpeakShow(val) {
+      // 是否登录
      if(!this.isLogin()){
        return false
      }
+     // 是否绑定手机
+     if(!this.enterInfo.userInfo.bindMobile) {
+        this.bindPhoneShow = true;
+        return false;
+     }
       this.editSpeakShow = val;
       this.$refs.quillEditor.$emit('autoFocus')
+    },
+    // 绑定手机成功
+    bindPhoneSuccess(val) {
+      this.init();
+      this.bindPhoneShow = false;
     },
     setChoseAnswershow(val) {
       this.choseAnswershow = val;
@@ -625,9 +634,10 @@ export default {
             time: '2000'
           })
       }
-
-      this.$Fetch(this.interface.api.sendMessage, params, (res)=> {
+      this.setEditSpeakShow(false);
+      this.$Fetch("sendMessage", params, (res)=> {
         if(res.body.resultKey == 'ok') {
+          
           this.editSpeakValue = '';
           this.$vux.toast.show({
             type: 'success',
@@ -725,46 +735,33 @@ export default {
         roomId: this.roomId
       }
       return new Promise((resolve, reject) => {
-        this.$http.jsonp(this.interface.api.getHistoryList, {params}).then(
-          res => {
-            if(res.body.resultKey === 'ok') {
+        this.$Fetch("getHistoryList", params, (res) => {
+          if(res.body.resultKey === 'ok') {
               const _data = res.body.data.roomDailySumList;
               if(_data.length > 0) {
                 this.historyList = _data.map(({date})=> date.toString().substring(0,8))
               }
             };
             resolve();
-          },
-          errmsg => {
-            console.log('fail')
-          }
-        )
+        }, this)
       })
-      
- 
     },
     // 获取互动
     getRightMsg(params = {roomId: this.roomId}, callback) {
-      this.$http.jsonp(this.interface.api.getRightMsg, {params}).then(
-        res => {
-          if(res.body.resultKey === 'ok') {
+      this.$Fetch("getRightMsg", params, (res) => {
+        if(res.body.resultKey === 'ok') {
             if(!Array.isArray(this.rightMsg)) {
                this.rightMsg = [];
             }
             this.rightMsg = this.rightMsg.concat(res.body.data.messages);
             
           }
-        },
-        errmsg => {
-          console.log('fail')
-        }
-      )
+      }, this)
     },
     // 获取直播观点
     getLeftMsg(params = {roomId: this.roomId},callback) {
-      this.$http.jsonp(this.interface.api.getLeftMsg, {params}).then(
-        res => {
-          if(res.body.resultKey === 'ok') {
+      this.$Fetch("getLeftMsg", params, (res) => {
+        if(res.body.resultKey === 'ok') {
             if(!Array.isArray(this.leftMsg)) {
                this.leftMsg = [];
             }
@@ -775,11 +772,7 @@ export default {
               callback.apply(this, [res.body.data.messages]);
             }
           }
-        },
-        errmsg => {
-          console.log('fail')
-        }
-      )
+      }, this);
     },
     // 设置主题
     setRoomTopic() {
@@ -787,7 +780,7 @@ export default {
         roomId: this.roomId,
         topic: this.editThemeValue,
       }
-      this.$Fetch(this.interface.api.setRoomTopic, params, (res) => {
+      this.$Fetch("setRoomTopic", params, (res) => {
         if(res.body.resultKey === 'ok') {
 
             this.enterInfo.roomInfo.topic = this.editThemeValue
@@ -812,20 +805,15 @@ export default {
         source: 2,
         uid: this.enterInfo.roomInfo.ownerId,
       };
-      this.$http.jsonp(this.interface.api.getFollowInfo, {params}).then(
-        res => {
-          if(res.body.statecode == '1') {
+      this.$Fetch("getFollowInfo", params, (res) => {
+         if(res.body.statecode == '1') {
             if(res.body.result == true) {
               this.likeInfo = '已关注'
             } else {
               this.likeInfo = '关注'
             }
           }
-        },
-        errmsg => {
-          console.log()
-        }
-      )
+      }, this)
     },
     // 关注老师
     followtearch() {
@@ -836,9 +824,8 @@ export default {
         source: 2,
         uid: this.enterInfo.roomInfo.ownerId,
       };
-      this.$http.jsonp(this.interface.api.followtearch, {params}).then(
-        res => {
-          if(res.body.statecode=='1') {
+      this.$Fetch("followtearch", params, (res) => {
+        if(res.body.statecode=='1') {
             this.likeInfo = '已关注'
           } else {
             this.$vux.alert.show({
@@ -846,12 +833,7 @@ export default {
               content: res.body.message,
             })
           }
-          
-        },
-        errmsg => {
-          console.log(errmsg);
-        }
-      )
+      }, this);
     },
     // 获取登录信息
     getloginInfo() {
@@ -875,14 +857,13 @@ export default {
         roomId: this.roomId
       }
       return new Promise((resolve, reject) => {
-        this.$http.jsonp(this.interface.api.getRoomInfo, {params}).then(
-          res => {
-            if(res.body.resultKey === 'ok') {
+         this.$Fetch("getRoomInfo", params, (res) => {
+           console.log(res)
+           if(res.body.resultKey === 'ok') {
               const data = res.body.data
               this.enterInfo = data;
               this.checkUserType(this.enterInfo)
               resolve();
-              
             } else {
               if(res.body.businessKey=='user_baned'){
                     //您被该直播室拉黑了
@@ -890,22 +871,19 @@ export default {
                     this.dialogText = res.body.errorMessage
                     return;
                 }
-                if(res.body.businessKey=='user_not_buy_room'){
-                    //novip
-                    // require(['novip']);
-                    return ;
-                }
-                if(res.body.businessKey=='user_not_login'){
-                    //没登陆
-                    this.checkLogin()
-                    return ;
-                }
+              if(res.body.businessKey=='user_not_buy_room'){
+                  //novip
+                  this.isNoVip = true;
+                  return ;
+              }
+              if(res.body.businessKey=='user_not_login'){
+                  //没登陆
+                  this.checkLogin()
+                  return ;
+              }
+              
             }
-          },
-          errmsg => {
-            console.log(errmsg);
-          }
-        )
+         }, this)
       })
       
     },
@@ -982,11 +960,19 @@ export default {
       }
     },
     init() {
-      return new Promise((resolve, reject) => {
-          this.getloginInfo(); // 获取登录信息
-          this.getRoomInfo(); // 获取房间信息
-          const res = Promise.all([this.getloginInfo(),this.getRoomInfo()])
-      })
+      const init = Promise.all([this.getloginInfo(),this.getRoomInfo()]).then(
+        success => { 
+          if(this.isWechat) {
+            this.isLogin();
+          }
+          this.getFollowInfo();
+          this.getLeftMsg();
+          this.getRightMsg();
+          this.getHistoryList();
+          mqttSession.apply(this);
+          this.containerHeight = this.$refs.container.getBoundingClientRect().height + 'px';
+        }
+      )
     },
     
   },
@@ -998,20 +984,8 @@ export default {
       })
       return false;
     };
-    const init = Promise.all([this.getloginInfo(),this.getRoomInfo()]).then(
-      success => { 
-        if(this.isWechat) {
-          this.isLogin();
-        }
-        this.getFollowInfo();
-        this.getLeftMsg();
-        this.getRightMsg();
-        this.getHistoryList();
-        mqttSession.apply(this);
-        this.containerHeight = this.$refs.container.getBoundingClientRect().height + 'px';
-      }
-    )
-
+   
+    this.init();
     
     
   },
@@ -1027,7 +1001,7 @@ export default {
 }
 .icon {
   /* 通过设置 font-size 来改变图标大小 */
-  width: 1em; height: 1em;
+  width: .8rem; height: .8rem;
   /* 图标和文字相邻时，垂直对齐 */
   vertical-align: -0.15em;
   /* 通过设置 color 来改变 SVG 的颜色/fill */
@@ -1073,16 +1047,20 @@ export default {
 .h-info {
   flex: 1;
   padding-left: .266667rem;
+  .i-name {
+    font-size: 15px;
+  }
   .i-theme {
     display: flex;
   }
   .t-text{
-    width: 100px;
-    display: flex;
-    align-items: center;
+    max-width: 4.3rem;
+    display: block;
+    align-items: left;
     overflow: hidden;
-    text-overflow:ellipsis;
+    text-overflow: ellipsis;
     white-space: nowrap;
+    color: #CECECF;
   }
   .t-btn {
     padding-left: .266667rem; 
@@ -1102,26 +1080,31 @@ export default {
   }
 }
 
+.has-like {
+  background: #ccc;
+}
+
 .container {
   flex: 1;
   
 }
 
 .footer {
-  padding: .213333rem .266667rem;
+  padding: .2rem .266667rem;
   width: 100%;
   box-sizing: border-box;
 
   .f-btn-edit {
     border-radius: 1.333333rem;
     border: none;
-    background: #F5F5F5;
+    background: #eee;
     text-align: left;
     color: #999999;
     font-size: 14px ;
   }
 
   .f-btn-emoji {
+    padding: 0;
     border: none;
     box-sizing: border-box;
     display: flex;

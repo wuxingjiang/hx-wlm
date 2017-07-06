@@ -155,10 +155,22 @@ export default {
         obj.userImage = require('@/assets/system.png')
         if(obj.type == 'gift') { // 送礼
           obj.cbody = `${obj.userName}送给老师${obj.giftNum}${obj.giftUnit}${obj.giftName}`
+        }else if(obj.type = 'speak_policy') { // 更改发言权限
+          if(obj.value == 'vip') {
+            obj.cbody = '房间发言权限已变更，仅限vip用户可以发言'
+          }
+          if(obj.value == 'none') {
+            obj.cbody = '房间发言权限已变更，所有人都不可以发言'
+          }
+          if(obj.value == 'all') {
+            obj.cbody = '房间发言权限已变更，所有人都可以发言'
+          }
         }
       } else if (HXSERVICE.indexOf(obj.type) != -1){
         obj.class = 'service';
         obj.level = '和讯客服';
+      } else if (HOST.indexOf(obj.type) != -1) {
+        obj.level = '主持人';
       }
       
       if(typeof (obj.originalMessage)!='undefined') {
@@ -257,7 +269,7 @@ export default {
       const params = {
         msgId: this.info.messageId,
       }
-      this.$Fetch(this.interface.api.setImMsg, params, (res)=> {
+      this.$Fetch("setImMsg", params, (res)=> {
         if(res.body.resultKey == 'ok') {
           this.$emit('delMethod', this.sub)
           this.$vux.toast.show({
@@ -283,7 +295,7 @@ export default {
             startTime: '1970-01-01',
             endTime: '9999-12-31',
           }
-          this.$Fetch(this.interface.api.addUserBlackList, params, (res) => {
+          this.$Fetch("addUserBlackList", params, (res) => {
             if(res.body.resultKey == 'ok') {
             // this.$emit('delMethod', this.sub)
               this.$vux.toast.show({
@@ -310,7 +322,7 @@ export default {
             roomId: this.roomId,
             userId: this.cData.userId,
           }
-          this.$Fetch(this.interface.api.kickUser, params, (res) => {
+          this.$Fetch("addUserBlackList", params, (res) => {
             if(res.body.resultKey == 'ok') {
             // this.$emit('delMethod', this.sub)
               this.$vux.toast.show({
@@ -336,7 +348,7 @@ export default {
             roomId: this.roomId,
             userId: this.cData.userId,
           }
-          this.$Fetch(this.interface.api.silenceUser, params, (res) => {
+          this.$Fetch("addUserBlackList", params, (res) => {
             if(res.body.resultKey == 'ok') {
             // this.$emit('delMethod', this.sub)
               this.$vux.toast.show({
@@ -368,7 +380,7 @@ export default {
         msgId: this.info.messageId
       }
 
-      this.$Fetch(this.interface.api.delMessage, params, (res)=> {
+      this.$Fetch("delMessage", params, (res)=> {
         if(res.body.resultKey == 'ok') {
     
           this.$vux.toast.show({
@@ -402,7 +414,7 @@ export default {
   }
   .c-img {
     align-self: flex-start;
-    padding-top: .533333rem;
+    padding-top: .85rem;
     width: 1.6rem;
     box-sizing: border-box;
     display: flex;
@@ -424,13 +436,13 @@ export default {
   .c-m-head {
     display: flex;
     justify-content: flex-start;
-
+    align-items: center;
     span {
       white-space: nowrap;
     }
 
     .m-h-char {
-      padding: 0 .106667rem;
+      padding: .04rem .213333rem;
       margin: 0 .066667rem;
       border-radius: 1.333333rem;
       color: #fff;
@@ -439,20 +451,25 @@ export default {
 
     .m-h-time {
       color: #C2C2C2;
+      margin-left: .24rem;
+
     }
   }
 
   .c-m-content {
-    margin: .173333rem 0;
+    margin: .2rem 0;
     background: #BEE4FB;
-    padding: .24rem;
+    padding: .333333rem .266667rem;
     border-radius: 5px;
     position: relative;
     word-wrap: break-word;
+    font-size: 15px;
     .m-c-opera {
       display: flex;
       justify-content: flex-end;
       align-items: center;
+      padding-top: .333333rem;
+      font-size: 12px;
       .btn {
         color:#049DFF;
         padding: 0 .266667rem;
@@ -470,12 +487,12 @@ export default {
     display: block;
     width: 0;
     height: 0;
-    border-top: .133333rem solid transparent;
-    border-right: .266667rem solid #BEE4FB;
-    border-bottom: .133333rem solid transparent;
+    border-top: .24rem solid transparent;
+    border-right: .24rem solid #BEE4FB;
+    border-bottom: .24rem solid transparent;
     position: absolute;
-    top: .266667rem;
-    left: -.266667rem;
+    top: .40rem;
+    left: -.213333rem;
     
   }
 
@@ -487,9 +504,10 @@ export default {
 
  
   .c-c-question {
-      background: #9DD4F3;
+      background: #F2F2F2;
       // background: red;
-      padding: .24rem;
+      margin-top: .333333rem;
+      padding: .333333rem .266667rem;
       border-radius: 5px;
     }
 
@@ -509,10 +527,10 @@ export default {
     }
     .c-m-content::after {
       border-right: none;
-      border-top: .133333rem solid transparent;
-      border-left: .266667rem solid #fff;
-      border-bottom: .133333rem solid transparent;
-      top: .266667rem;
+      border-top: .24rem solid transparent;
+      border-left: .24rem solid #fff;
+      border-bottom: .24rem solid transparent;
+      top: .40rem;
       left: 6.8rem;
     }
     .c-m-head {
@@ -548,6 +566,17 @@ export default {
     .m-h-char {
       background: #049DFF;
     }
+  }
+}
+
+.left {
+  .c-c-question {
+    background: #9dd4f3;
+  }
+}
+.right {
+  .c-c-question {
+    background: #f2f2f2;
   }
 }
 </style>
