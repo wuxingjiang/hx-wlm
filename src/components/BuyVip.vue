@@ -15,7 +15,7 @@
           <x-button 
           v-for="item in priceData" 
           :key = 'item'
-          @click.native="eventBtnClick(item.productid, item.priceid)"
+          @click.native="eventBtnClick(item)"
           plain type="primary" class="custom-primary-red">
             <span class="btn-price">￥{{item.price}}</span><span class="btn-unit">/{{item.unit}}</span>
           </x-button>
@@ -49,7 +49,7 @@
 import {
   XDialog,
   TransferDom,
-  XButton 
+  XButton
   } from 'vux'
 export default {
   name: 'BuyDialog',
@@ -61,41 +61,76 @@ export default {
   directives: {
     TransferDom
   },
-  props: ['roomId',],
-  data() {
+  props: ['roomId', 'dplusInfo', 'isWechat', 'webenv'],
+  data () {
     return {
       msg: 'this is buy',
       show: true,
       priceData: [],
-      stop: false,
+      stop: false
+    }
+  },
+  computed: {
+    publicfrom() {
+      return this.$route.query.publicfrom;
     }
   },
   methods: {
-    eventBtnClick(productid,priceid) {
-      // http://vip.px.hexun.com/payment/h5/PaymentOrder.aspx?productid=40182&priceid=13321
-      location.href=`http://vip.px.hexun.com/payment/h5/PaymentOrder.aspx?productid=${productid}&priceid=${priceid}&returnurl=${window.location.href}`
+    eventBtnClick (item) {
+      let priceArea = "10元以上"
+      if (item.price > 10) {
+        priceArea = "10元以下"
+      }
+      dplus_Click("点击事件", {
+        "事件功能": "购买",
+        "类型": "付费",
+        "所属平台": "微信工作室",
+        "产品ID": item.productid,
+        "产品名称": this.dplusInfo.rName,
+        "合作者ID": this.dplusInfo.pId,
+        "合作者名称": this.dplusInfo.pName,
+        "价格区间": priceArea,
+        "产品分类": "文字直播",
+        "事件类别": "体验",
+        "PLATFORM": "WEIXIN"
+      })
+      var wxlink="";
+      if (this.isWechat) 
+      {
+        wxlink='&belong=weixingzs&jumpPlatform=public';
+      }else
+      {
+        wxlink='&belong=zhibopt';
+      }
+      let link = `${this.webenv.orderHost}/order/h5/product?productid=${item.productid}&priceid=${item.priceid}&returnurl=${escape(window.location.href)}&fromhost=chat`+wxlink
+      // if(this.isWechat) {
+      //   link += '&jumpPlatform=public'
+      // }
+      if(this.publicfrom) {
+        link  = `${link}&publicfrom=${this.publicfrom}`
+      }
+      location.href = link
     }
   },
-  created() {
-
-    this.$Fetch("getRoomPrice", {roomId: this.roomId}, (res)=> {
-        if(res.body.resultKey == 'ok') {
-          const roomPricesList = res.body.data.roomPricesList;
-          const priceData = roomPricesList.filter(({roomId}) => {
-            return roomId == this.roomId;
-          })
-          this.priceData = priceData[0].roomPrices
-          if(this.priceData.length <= 0) {
-            this.stop = true;
-            this.show = false;
-          }
-        } else {
-            this.$vux.alert.show({
-            title: '系统提示',
-            content: res.body.errorMessage,
-          })
+  created () {
+    this.$Fetch("getRoomPrice", {roomId: this.roomId}, (res) => {
+      if (res.body.resultKey == 'ok') {
+        const roomPricesList = res.body.data.roomPricesList
+        const priceData = roomPricesList.filter(({roomId}) => {
+          return roomId == this.roomId
+        })
+        this.priceData = priceData[0].roomPrices
+        if (this.priceData.length <= 0) {
+          this.stop = true
+          this.show = false
         }
-      }, this)
+      } else {
+        this.$vux.alert.show({
+          title: '系统提示',
+          content: res.body.errorMessage
+        })
+      }
+    }, this)
   }
 }
 </script>
@@ -114,7 +149,13 @@ export default {
     background: #dd5050;
     color:#fff;
     border:none;
+    &:active {
+      border-color: rgba(0, 0, 0, .5)!important;
+      color: #fff !important;
+      background-color: #ee5050;
+    }
   }
+
   .btn-price {
     font-size: 18px;
   }

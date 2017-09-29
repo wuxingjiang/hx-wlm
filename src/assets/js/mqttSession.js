@@ -48,31 +48,39 @@ export function mqttSession() {
             client.subscribe(admTopic,subscribe_options);
         }
       }
+      // 链接失败
       function OnConnectFailed(responseObject) {
         console.log('mqtt链接失败')
-        console.log(responseObject)
         if(klick_logout||responseObject.errorCode==6){return}
-          setTimeout(function(){client.connect(connect_options);},5000);
+          setTimeout(function(){client.connect(connect_options);},500);
           
       }
-
+      // 初识链接成功
       function OnSubSuccess(responseObject) {
-        console.log(responseObject)
+        console.log("MQTT——初始化成功onSubSccess");
       }
-
+      // 初始链接失败
       function OnSubFailed(responseObject) {
-        console.log('f2')
+        console.log("MQTT——初始化失败OnSubFailed");
         client.connect(connect_options)
         }
 
+        // 当链接丢失时调用
       function onConnectionLost(responseObject) {
-        console.log(responseObject)
-          if (responseObject.errorCode !== 0) {
-              setTimeout(function(){client.connect(connect_options);},5000);
-          }
+        // if(responseObject.errorCode === 5){return}
+        console.log('丢失')
+        setTimeout(function () {
+                client.connect(connect_options);
+                console.log('断后重连');
+            }, 500);
       }
      
       var Mess={
+          t_pum: function (a) {
+            // 学院反馈
+            console.log('老师发表直播观点')
+            vm.leftMsg.push(a)
+          },
           t_ss: function(a) {
 
           },
@@ -172,14 +180,21 @@ export function mqttSession() {
           },
           kick_user:function(a){
               /*踢出用户*/
-              console.log('提出用户', a)
               if(a.toKickUserId == vm.enterInfo.userInfo.userId) {
                 vm.isBlack = true;
                 vm.dialogText = a.body
             }
           },
           kick_user_multi_account:function(a){
+              console.log(a)
               /*单点登陆*/
+              if(a.kick_by == 'sid' && a.toKickSessionId == vm.enterInfo.userInfo.sessionId &&  a.roomId == vm.roomId) {
+                vm.isBlack = true;
+                vm.dialogText = a.body;
+                vm.leftMsg = [];
+                vm.rightMsg = [];
+                vm.exitLogin() // 退出登录
+            }
           },
           blacklist_user:function(a){
             //拉黑用户
@@ -247,7 +262,7 @@ export function mqttSession() {
                       break;
                   case 'online':
                       //老师是否在线
-                      a.value ? $('#online').removeClass('visible') : $('#online').addClass('visible');
+                    //   a.value ? $('#online').removeClass('visible') : $('#online').addClass('visible');
                       break;
                   case 'popularity':
                       //直播室人气更新

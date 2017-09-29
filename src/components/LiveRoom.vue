@@ -1,5 +1,7 @@
+
 <template>
-  <div class="liveRoom" id="liveRoom">
+  <div class="liveRoom">
+    <view-box ref="viewBox" class="liveRoom-viewBox">
     <x-header v-if="headerShow">{{enterInfo.roomInfo.roomName}}</x-header>
     <header class="head">
         <div class="h-img">
@@ -37,7 +39,7 @@
     active-color="#ee5050"
     defaultColor="#444"
     bar-active-color="#ee5050"
-    v-model="index">
+    v-model="activeIndex">
       <tab-item 
       class="vux-center" 
       :selected="defaultSelected === item" 
@@ -50,78 +52,87 @@
     <div
     ref = "container"
     class="container" >
-      <swiper 
-      v-model="index" 
-      :show-dots="false"
-      ref = 'swiper'
-      :height="containerHeight">
-        <swiper-item height="100%" class="c-item" v-for="(item, index) in list" :key="index">
-          <scroller
-          :ref = "`scroller${index}`"
-          v-model="pullStatus"
-          height="100%"
-          scrollbarY
-          :use-pulldown="index === 0 && !noMore? true : false"
-          :pulldown-config="pulldownConfig"
-          @on-pulldown-loading="getHistoryMsg">
-            <div class="js-msg-container">
-              <divider v-if="index == '0' && noMore">没有更多数据</divider>
+        <div 
+        ref="js_leftCon"
+        v-show="activeIndex == 0"
+        class="c-item js_item"
+        v-c-s
+        @scroll="eventScroll"
+        >
               <msg-manager
               class="left"
               v-for="(msg, num) in leftMsg"
-              v-if="item === '直播观点'"
+              v-show="msg.type != 't_ss' && msg.contentType != 'audio'"
               :authority = "authority"
               :info="msg"
               :key="msg.type + num"
-              :type= "item"
+              :type= "'直播观点'"
               :interface="interface"
               :roomId ="roomId"
               :sub = "num"
               ></msg-manager>
-              <msg-manager
-            
-              v-for="(msg, num) in rightMsg"
-              class="right"
-              v-if="item === '互动交流'"
-              :authority = "authority"
-              :info="msg"
-              :key = "msg.type + num"
-              :type= "item"
-              @answerMethod = 'answerMethod'
-              @explainMethod = 'explainMethod'
-              :interface="interface"
-              :roomId="roomId"
-              :sub = "num"
-              ></msg-manager>
-            </div>
-          </scroller>
-        </swiper-item>
-      </swiper>
+              
+        </div>
+        <div 
+          ref="js_RightCon"
+          class="c-item js_item"
+          @scroll="eventScroll"
+          v-show="activeIndex == 1"
+          style="overflow:hidden;">
+          <ul>
+            <li  v-if="noMore" >
+              <load-more
+                :show-loading="showloadmore"  
+                :tip="loadtext"
+                :background-color="'#f5f5f5'">
+              </load-more>
+            </li>
+            <li
+            v-for="(msg, num) in rightMsg">
+              <msg-manager    
+                class="right"
+                v-show=" msg.type != 't_ss'  && msg.contentType != 'audio'"
+                :authority = "authority"
+                :info="msg"
+                :key = "msg.type + num"
+                :type= "'互动交流'"
+                @answerMethod = 'answerMethod'
+                @explainMethod = 'explainMethod'
+                :interface="interface"
+                :roomId="roomId"
+                :sub = "num"
+                :userId = 'enterInfo.userInfo.userId'
+                ref='rightMsg'
+                >
+              </msg-manager>
+            </li>
+          </ul>
+        </div>
     </div>
 
-    <flexbox class="footer vux-1px-t">
-      <flexbox-item :span="90/100">
-        <x-button 
-        class="f-btn-edit" 
-        plain
-        :action-type="'button'"
-        @click.native="setEditSpeakShow(true)"
-        >
-          <input-placeholder :placeholder="speakPlaceholder"></input-placeholder>
-        </x-button>
-      </flexbox-item>
-      <flexbox-item :span="10/100">
-        <x-button
-        class="f-btn-emoji"
-        @click.native="eventOpenEmoji"
-        plain>
-          <svg class="icon e-xiaolian" aria-hidden="true">
-              <use xlink:href="#icon-xiaolian"></use>
-          </svg>
-        </x-button>
-      </flexbox-item>
-    </flexbox>
+    <div class="footer vux-1px-t">
+      <div
+      class="f-btn-edit" 
+      plain
+      :action-type="'button'"
+      @click="setEditSpeakShow(true)"
+      >
+        <input-placeholder :placeholder="speakPlaceholder"></input-placeholder>
+      </div>
+      <div
+      v-if="!isAndroid4"
+      class="f-btn-emoji"
+      @click="eventOpenEmoji"
+      plain>
+        <svg class="icon e-xiaolian" aria-hidden="true">
+            <use xlink:href="#icon-xiaolian"></use>
+        </svg>
+      </div>
+    </div>
+
+    </view-box>
     <textarea-group
+    ref="themeEditor"
     :max="editThemeMax"
     :placeholder="'请输入今日主题'"
     :editShow="editThemeShow"
@@ -149,7 +160,7 @@
     :editType="editType"
     :identity = "identity"
     :editemojiShow = "editemojiShow"
-
+    :isAndroid4="isAndroid4"
     ></quill-edit>
     <div v-transfer-dom >
       <x-dialog v-model = "isBlack" :dialog-style="{padding:'40px 20px'}">{{dialogText}}</x-dialog>
@@ -170,23 +181,34 @@
       v-model="choseExplainshow"
       is-transparent >
         <div class="chose-answer-list">
-            <x-button class="c-a-l-btn c-a-l-btn-one" @click.native="eventExplainOpen">公开回答</x-button>
-            <x-button class="c-a-l-btn c-a-l-btn-two vux-1px-t" @click.native="eventExplainSolo">私密回答</x-button>   
-            <x-button class="c-a-l-btn c-a-l-btn-three" @click.native="setChoseExplainshow(false)">取消</x-button>
-          </div>
+          <x-button v-if="false" class="c-a-l-btn c-a-l-btn-one" @click.native="eventExplainOpen">公开回答</x-button>
+          <x-button v-if="false" class="c-a-l-btn c-a-l-btn-two vux-1px-t" @click.native="eventExplainSolo">私密回答</x-button>
+          <x-button class="c-a-l-btn c-a-l-btn-two vux-1px-t" style="border-radius: .133333rem;" @click.native="eventExplainSolo">私密回答</x-button>
+          <x-button class="c-a-l-btn c-a-l-btn-three" @click.native="setChoseExplainshow(false)">取消</x-button>
+        </div>
       </popup>
     </div>
     <buy-vip 
     v-if="isNoVip"
+    :isWechat="isWechat"
+    :dplusInfo="dplusInfo"
+    :webenv="webenv"
     :roomId="roomId"></buy-vip>
     <bind-phone 
     v-if="bindPhoneShow"
     :isWechat="isWechat"
+    :roomId="roomId"
+    :show="true"
+    :dplusInfo="dplusInfo"
+    @closeBindPhone="closeBindPhone"
     @bindSuccess="bindPhoneSuccess"></bind-phone>
   </div>
+  
 </template>
 
 <script>
+require('@/assets/js/iscroll-probe.js')
+import VuePullRefresh from 'vue-pull-refresh'
 import MsgManager from '@/components/Msg-Manager.vue'
 import InputPlaceholder from '@/components/InputPlaceholder.vue'
 import TextareaGroup from '@/components/TextareaGroup.vue'
@@ -195,35 +217,31 @@ import BindPhone from '@/components/BindPhone.vue'
 import quillEdit from '@/components/quillEdit.vue'
 import {mqttSession} from '@/assets/js/mqttSession.js'
 import webenv from '@/assets/js/config.js'
-import * as Browser from '@/assets/js/browser.js';
-
-
+import * as Browser from '@/assets/js/browser.js'
 import {
   Actionsheet,
-  Sticky, 
-  XHeader, 
-  Tab, 
-  TabItem, 
-  Swiper, 
-  SwiperItem, 
-  XInput, 
-  Group, 
+  Sticky,
+  XHeader,
+  Tab,
+  TabItem,
+  Swiper,
+  SwiperItem,
+  XInput,
+  Group,
   XButton,
-  Flexbox,
-  FlexboxItem,
   Popup,
   XTextarea,
   Scroller,
-  AjaxPlugin,
   Divider,
   XDialog,
   TransferDom,
+  ViewBox,
+  LoadMore
   } from 'vux'
 
 const list = () => ['直播观点', '互动交流']
 
 export default {
- 
   components: {
     Actionsheet,
     Sticky,
@@ -235,20 +253,20 @@ export default {
     Group,
     XInput,
     XButton,
-    Flexbox,
-    FlexboxItem,
     Popup,
     XTextarea,
     Scroller,
     Divider,
     XDialog,
-    TransferDom,
+    ViewBox,
+    LoadMore,
     'msg-manager': MsgManager,
-    'input-placeholder':InputPlaceholder,
+    'input-placeholder': InputPlaceholder,
     'textarea-group': TextareaGroup,
-    'quill-edit':quillEdit,
+    'quill-edit': quillEdit,
     'buy-vip': BuyVip,
-    'bind-phone':BindPhone
+    'bind-phone': BindPhone,
+    'vue-pull-refresh': VuePullRefresh
   },
   directives: {
     TransferDom
@@ -259,10 +277,9 @@ export default {
       // with hot-reload because the reloaded component
       // preserves its current state and we are modifying
       // its initial state.
-      msg: 'Hello World!',
       webenv: webenv,
       defaultSelected: '直播观点',
-      index: 0,
+      activeIndex: 0,
       list: list(),
       editThemeShow: false,
       editThemeMax: 20,
@@ -273,15 +290,6 @@ export default {
       editemojiShow: false,
       likeInfo: '关注', // 关注信息
       speakPlaceholder: '说说你的想法…',
-      pulldownConfig: {
-        content: '下拉加载更多',
-        height: 60,
-        autoRefresh: false,
-        downContent: '下拉加载更多',
-        upContent: '释放加载',
-        loadingContent: '加载中...',
-        clsPrefix: 'xs-plugin-pulldown-'
-      },
       choseAnswershow: false, // 回复选择弹出
       isBlack: false, // 是否是黑名单用户
       dialogText: '',
@@ -295,48 +303,67 @@ export default {
           roomName: '',
           ownerNick: '',
           imageUrl: '',
-          topic:'',
+          topic: ''
         }
       }, // 房间信息
       identity: 'user', // 用户身份
       leftMsg: [],
       rightMsg: [],
-      historyList:[],
+      historyList: [],
       msgDomInfo: false,
-      editType: 'send', //编辑器类型 默认send 发送消息 answer 回复 explan 解答
+      editType: 'send', // 编辑器类型 默认send 发送消息 answer 回复 explan 解答
       answerWho: '回复谁',
       choseSendTypeShow: false,
       sendType: {},
       choseExplainshow: false,
-      containerHeight: 439/2 +'px',
       weChatLogin: false, // 是否绑定微信
       isNoVip: false,
       bindPhoneShow: false, // 绑定手机dialog
+      loadMore: false,
+      myScroll: null,
+      rightShow: false,
+      rightOldY: false, // 保存切换标签后的右侧滚动位置Y
+      loadtext: '下拉加载更多',
+      showloadmore: false,
+      roomBaseInfo: {
+        roomName: '',
+        ownerId: '',
+        ownerNick: ''
+      } // 基本房间信息
     }
   },
   computed: {
-    interface() {
-      let apidomain= this.webenv.apiHost;
+    interface () {
       return {
-        islogin:'http://reg.tool.hexun.com/wapreg/checklogin.aspx?format=json&encode=utf-8',//判断登陆
+        islogin: 'http://reg.tool.hexun.com/wapreg/checklogin.aspx?format=json&encode=utf-8', // 判断登陆
         h5logurl: 'https://reg.hexun.com/h5/login.aspx?regtype=5&gourl=' + escape(window.location.href),
         isBindWeChat: 'https://regtool.hexun.com/wapreg/CheckBindWechat.aspx', // 是否绑定微信
         bindWeChat: `https://reg.hexun.com/bindweixin.aspx?gourl=${escape(window.location.href)}&fromhost=weixin`,
+        exitLogin: `http://utility.tool.hexun.com/Quit.aspx?gourl=${escape(window.location.href)}`
       }
     },
-    headerShow() {
-      const browser = new Browser.Browser().browser;
+    headerShow () {
+      const headerShow = this.$route.query.header
+      const browser = new Browser.Browser().browser
+
+      if (headerShow === 'off') {
+        return false
+      }
       let arr = ['Wechat', 'QQ']
-      return arr.indexOf(browser) == '-1';
+      return arr.indexOf(browser) == '-1' && !this.isApp;
     },
      // 是否在微信
-    isWechat(){
-      return true;
+    isWechat (){
       const browser = new Browser.Browser().browser;
       return browser == 'Wechat';
     },
-    // 时候在App
-    isApp(){
+    isIos () {
+      const browser = new Browser.Browser().os;
+      return browser == 'iOS';
+    },
+    // 在App
+    isApp (){
+      
       const ua = navigator.userAgent.toLowerCase();
       if(ua.indexOf('hxappid')>0) {
         return true;
@@ -344,49 +371,96 @@ export default {
         return false;
       }
     },
-    roomId() {
+    roomId () {
       return this.$route.query.roomId;
     },
     // 权限
-    authority() {
+    authority () {
       const iden = this.identity;
       return {
         operation: iden == 'teacher' || iden == 'assistant', // 操作权限 真三该查 管理权限
-        answerService: iden != "anonymous", // 回复功能
+        answerService: iden != 'anonymous' && iden != 'service', // 回复客服功能
+        answerUser: iden == 'service' || iden == 'presenter' || iden == 'vipUser', // 回复学院
+        
       }
     },
-    leftMsgLen() {
+    leftMsgLen () {
       return this.leftMsg.length;
     },
     rightMsgLen() {
       return this.rightMsg.length;
-    }
+    },
+    dplusInfo() {
+      return {
+        pId: this.roomBaseInfo.ownerId,
+        pName: this.roomBaseInfo.ownerNick,
+        rName: this.roomBaseInfo.roomName
+      } 
+    },
+    browser() {
+      return new Browser.Browser()
+    },
+    isAndroid4 () { // 是否安卓4.4以下
+      if (this.browser.os == 'Android' && parseFloat(this.browser.osVersion) < 5.0) {
+        return true
+      } else {
+        return false
+      }
+    },
+     
   },
   watch: {
     leftMsgLen(newVal,oldVal) {
-      this.reflashBox(newVal,oldVal)
+      this.$scrollToBottom(this.$refs.js_leftCon)
     },
     rightMsgLen(val,nal) {
-      this.reflashBox(val,nal)
-    },
-    index() {
-      this.reflashBox([1],[1])
-    },
-    containerHeight(val , nal) {
-      if(val !== nal) {
-        this.$refs.swiper._watcher.vm.xheight = val
+      const myScroll = this.myScroll
+      if(Math.abs(myScroll.maxScrollY - myScroll.y) <= myScroll.wrapperHeight) {
+        this.rightGoButtom()
+      } else {
+        this.$nextTick(() => {
+          this.myScroll.refresh()
+        })
       }
-    }
+      // this.$scrollToBottom(this.$refs.js_RightCon)
+    },
+    activeIndex(val) {
+      if(val == 0) {
+        this.$scrollToBottom(this.$refs.js_leftCon)
+      } else {
+        if(!this.rightShow || !this.rightOldY) {
+          this.rightShow = true;
+          this.rightGoButtom()
+        } else {
+          console.log('ss')
+          this.myScroll.scrollTo(0, this.rightOldY)
+        }
+        // this.$scrollToBottom(this.$refs.js_RightCon)
+      }
+      
+    },
   },
   methods: {
+    // 滚动记录
+    eventScroll(e) {
+      const el = e.target
+      el.setAttribute('scrollTop', el.scrollTop);
+      // 如果是互动交流
+    },
+    rightGoButtom () {
+      this.$nextTick(() => {
+        this.myScroll.refresh()
+        this.myScroll.scrollTo(0, this.myScroll.maxScrollY)
+      })
+    
+    },
     //删除消息
     delMessage(a) {
-      console.log(a);
-       this.leftMsg.filter(({messageId}, index) => {
-          if(messageId == a.toDeleteMessageId) {
-              this.leftMsg.splice(index, 1)
-              return true;
-          }
+      this.leftMsg.filter(({messageId}, index) => {
+        if(messageId == a.toDeleteMessageId) {
+            this.leftMsg.splice(index, 1)
+            return true;
+        }
       })
       this.rightMsg.filter(({messageId}, index) => {
         if(messageId == a.toDeleteMessageId) {
@@ -394,30 +468,33 @@ export default {
             return true;
         }
       })
-      
     },
     // 重置编辑器数据
     resetEdit() {
       this.speakPlaceholder = '说说你的想法…'
       this.editType = 'send';
-
     },
     // 回答问题
     answerMethod(params) {
-    
+      console.log(params)
       this.answerWho = {
         name: params.name,
         msgId: params.msgId,
-
       };
+
       if(params.type) {
          this.setChoseAnswershow(true);
       } else {
         if(this.identity == 'user' || this.identity == 'vipUser') {
           this.userAnswer()
         }
-      }
-      
+        if(this.identity == 'service') { // 客服
+          this.serviceAnswer()
+        }
+        if(this.identity == 'presenter') { // 主持人
+          this.presenterAnswer()
+        } 
+      }    
     },
     // 解答
     explainMethod(params) {
@@ -460,9 +537,18 @@ export default {
       this.speakPlaceholder = `互动回复@${this.answerWho.name}：`
       this.setEditSpeakShow(true); // open editor
     },
+    presenterAnswer() {
+      this.editType = 'presenterAnswer';
+      this.setChoseAnswershow(true);
+    },
     userAnswer() {
       this.editType = 'userAnswer';
       this.speakPlaceholder = `回复客服@${this.answerWho.name}：`
+      this.setEditSpeakShow(true); // open editor
+    },
+    serviceAnswer() {
+      this.editType = 'serviceAnswer';
+      this.speakPlaceholder = `回复@${this.answerWho.name}：`
       this.setEditSpeakShow(true); // open editor
     },
     teacherAnswer() {
@@ -477,7 +563,13 @@ export default {
       if(!this.isLogin()){
        return false
      }
+      // 是否绑定手机
+      if(!this.enterInfo.userInfo.bindMobile) {
+        this.bindPhoneShow = true;
+        return false;
+      }
       this.editThemeShow = val;
+      this.$refs.themeEditor.$emit('autoFocus')
     },
     setEditSpeakShow(val) {
       // 是否登录
@@ -492,10 +584,14 @@ export default {
       this.editSpeakShow = val;
       this.$refs.quillEditor.$emit('autoFocus')
     },
+    // 关闭绑定手机弹窗
+    closeBindPhone() {
+      this.bindPhoneShow = false;
+    },
     // 绑定手机成功
     bindPhoneSuccess(val) {
-      this.init();
       this.bindPhoneShow = false;
+      location.reload();
     },
     setChoseAnswershow(val) {
       this.choseAnswershow = val;
@@ -576,7 +672,7 @@ export default {
           originalMessageId: msgId,
           attributes: '', 
         }
-      } else if (this.identity === 'user' && subParams.isQuestion && this.editType === 'send') {
+      } else if ((this.identity === 'user' || this.identity ==='vipUser') && subParams.isQuestion && this.editType === 'send') {
         type = 'u_a' // 用户提问
         params = {
           roomId: this.roomId,
@@ -588,7 +684,7 @@ export default {
           sendToFree: false, 
           attributes: '', 
         }
-      } else if (this.identity === 'user' && !subParams.isQuestion && this.editType === 'send') {
+      } else if ((this.identity === 'user'|| this.identity ==='vipUser') && !subParams.isQuestion && this.editType === 'send') {
         type = 'u_s' // 用户发言
         params = {
           roomId: this.roomId,
@@ -600,7 +696,7 @@ export default {
           sendToFree: false, 
           attributes: '', 
         }
-      } else if (this.identity === 'user' && !subParams.isQuestion && this.editType === 'userAnswer') {
+      } else if ((this.identity === 'user'|| this.identity ==='vipUser') && !subParams.isQuestion && this.editType === 'userAnswer') {
         type = 'u_r' // 用户回答客服
         params = {
           roomId: this.roomId,
@@ -613,7 +709,7 @@ export default {
           originalMessageId: this.answerWho.msgId,
           attributes: '', 
         }
-      } else if (this.identity === 'user' && !subParams.isQuestion && this.editType === 'teacher') {
+      } else if ((this.identity === 'user'|| this.identity ==='vipUser') && !subParams.isQuestion && this.editType === 'teacher') {
         type = 'u_r' // 用户回答客服
         params = {
           roomId: this.roomId,
@@ -624,6 +720,140 @@ export default {
           body: this.editSpeakValue,
           sendToFree: false, 
           originalMessageId: this.answerWho.msgId,
+          attributes: '', 
+        }
+      } else if (this.identity === 'presenter' && this.editType == "send" && !subParams.isQuestion) {
+        type = 'zc_s' // 主持人发言
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: this.answerWho.msgId,
+          attributes: '', 
+        }
+      } else if (this.identity === 'service' && this.editType == "send" && !subParams.isQuestion) {
+        type = 'cs_s' // 客服发言
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: this.answerWho.msgId,
+          attributes: '', 
+        }
+      } else if (this.identity === 'service' && this.editType == 'serviceAnswer') {
+        type = 'cs_ro' // 客服回复
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: this.answerWho.msgId,
+          attributes: '', 
+        }
+      } else if (this.identity === 'presenter' && this.editType == 'openAnswer') {
+        type = 'zc_rol' // 主持左侧回复
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: this.answerWho.msgId,
+          attributes: '', 
+        }
+      } else if (this.identity === 'presenter' && this.editType == 'soloAnswer') {
+        type = 'zc_ror' // 主持右侧回复
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: this.answerWho.msgId,
+          attributes: '', 
+        }
+      } else if(this.identity === 'assistant' && this.editType === 'send') {
+        type = 'ta_s';
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          attributes: '', 
+        }
+      } else if (this.identity === 'assistant' && this.editType === 'openAnswer') {
+        type = 'ta_rol'; // 公开回复
+        msgId = this.answerWho.msgId;
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: msgId,
+          attributes: '', 
+        }
+
+      } else if (this.identity === 'assistant' && this.editType === 'soloAnswer') {
+        type = 'ta_ror' // 私密回复
+        msgId = this.answerWho.msgId;
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: msgId,
+          attributes: '', 
+        }
+      } else if (this.identity === 'assistant' && this.editType === 'openExplain') {
+        type = 'ta_ro' // 公开回答
+        msgId = this.answerWho.msgId;
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/room/${this.roomId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: msgId,
+          attributes: '', 
+        }
+      } else if (this.identity === 'assistant' && this.editType === 'soloExplain') {
+        type = 'ta_rp' // 私密回答
+        msgId = this.answerWho.msgId;
+        params = {
+          roomId: this.roomId,
+          type: type,
+          from:'pc',
+          contentType:'text',
+          topic: `zhibo/chat/dm/${this.enterInfo.roomInfo.ownerId}/${this.enterInfo.userInfo.userId}`,
+          body: this.editSpeakValue,
+          sendToFree: false, 
+          originalMessageId: msgId,
           attributes: '', 
         }
       }
@@ -631,17 +861,16 @@ export default {
       if(!type) {
         this.$vux.toast.show({
             type: 'warn',
-            time: '2000'
+            time: '1000'
           })
       }
       this.setEditSpeakShow(false);
       this.$Fetch("sendMessage", params, (res)=> {
         if(res.body.resultKey == 'ok') {
-          
           this.editSpeakValue = '';
           this.$vux.toast.show({
             type: 'success',
-            time: '2000'
+            time: '1000'
           })
         } else {
           this.$vux.alert.show({
@@ -650,29 +879,34 @@ export default {
           })
         }
       }, this)
-
-  
     },
     // reflash
     reflashBox(val, nal) {
-      let type= 'last'; // 默认刷新到尾部
-      if(val > 0) {
-          const domArr = this.$refs[`scroller${this.index}`][0].$el.getElementsByClassName('js-msg-container')[0];
-          // 保存msgdom信息 用于把他们展示在可视范围内
-          if(domArr) {
-            this.msgDomInfo = domArr;
-          }
-        }
+    //   // return false
       
-      if(val - nal == 1) { // 如果增加1条是发言
-       type = 'last'
-      } else if(val - nal == -1 ){ // 如果减少一条 是删除消息
-        type = 'middle'
-      } else if (val - nal > 1) { // 如果插入多条是获取更多
-        type = 'first'
-      }
-
-      this.resetScrollerBox(type);
+      // let type= 'last'; // 默认刷新到尾部
+      // if(val > 0) {
+      //   console.log(this.$refs[`msgCon${this.activeIndex}`])
+      //     const domArr = this.$refs[`msgCon${this.activeIndex}`][0];
+      //     // 保存msgdom信息 用于把他们展示在可视范围内
+      //     if(domArr) {
+      //       this.msgDomInfo = domArr;
+      //     }
+         
+      //   this.$nextTick(() => {
+      //     domArr.scrollTop = domArr.scrollHeight;
+      //   })
+      //   }
+      
+      // if(val - nal == 1) { // 如果增加1条是发言
+      //  type = 'last'
+      // } else if(val - nal == -1 ){ // 如果减少一条 是删除消息
+      //   type = 'middle'
+      // } else if (val - nal > 1) { // 如果插入多条是获取更多
+      //   type = 'first'
+      // }
+     
+      // this.resetScrollerBox(type);
     },
     // 下拉刷新
     getHistoryMsg() {
@@ -704,30 +938,6 @@ export default {
   
     // 重置scroller viewbox
     resetScrollerBox(type = 'last') {
-      this.$nextTick(() => {
-        setTimeout(() => {
-          let top = '0'
-          if(this.msgDomInfo) {
-            if(type == 'last') {
-              top = this.msgDomInfo.scrollHeight - this.$refs[`scroller${this.index}`][0].$el.clientHeight;
-            }
-          }
-          if(top < 0) {
-            top = 0
-          }
-          if(type == 'middle') {
-            this.$refs[`scroller${this.index}`][0].reset({
-            })
-          } else {
-            this.$refs[`scroller${this.index}`][0].reset({
-              top: top
-            })
-          }
-          
-          // this.pullupEnabled && this.$refs.scroller.enablePullup()
-          this.pullStatus.pulldownStatus = 'default';
-        }, 10)
-      })
     },
     //获取历史信息时间列表
     getHistoryList() {
@@ -754,24 +964,64 @@ export default {
                this.rightMsg = [];
             }
             this.rightMsg = this.rightMsg.concat(res.body.data.messages);
-            
           }
       }, this)
+    },
+    // 获取互动历史
+    getMoreRight () {
+      if(this.activeIndex == 1) {
+        // 如果滚动到了最顶部
+          const messageId = this.rightMsg[0].messageId
+          const params = {
+            roomId: this.roomId,
+            LoadMore: true,
+            messageId: messageId
+          }
+          this.$Fetch("getRightMsg", params, (res) => {
+            if(res.body.resultKey === 'ok') {
+              const data = res.body.data.messages
+                if(!Array.isArray(this.rightMsg)) {
+                  this.rightMsg = [];
+                }
+                this.rightMsg = data.concat(this.rightMsg);
+                this.myScroll.loadMore = false
+                this.showloadmore = false
+                this.$nextTick(() => {
+                  if(data.length <= 0) {
+                    this.loadtext = '没有更多消息'
+                  } else {
+                    const oldview = this.$refs.rightMsg.filter((item) => {                    
+                    return item.info.messageId == messageId
+                  })
+                    this.myScroll.refresh()
+                    this.myScroll.scrollToElement(oldview[0].$el, 0, 0, -20)
+                    this.noMore = false
+                  }
+                  })
+                
+              }
+          }, this, false)
+        
+      }
     },
     // 获取直播观点
     getLeftMsg(params = {roomId: this.roomId},callback) {
       this.$Fetch("getLeftMsg", params, (res) => {
-        if(res.body.resultKey === 'ok') {
+        if(res.body.resultKey === 'ok') {          
             if(!Array.isArray(this.leftMsg)) {
                this.leftMsg = [];
             }
             if(res.body.data.messages.length > 0) { // 防止没有数据时重置leftMsg
               this.leftMsg = res.body.data.messages.concat(this.leftMsg);
             }        
-            if(callback && typeof(callback === 'function')) {
+            if (callback && typeof (callback === 'function')) {
               callback.apply(this, [res.body.data.messages]);
             }
           }
+          // 首次加载自动滚动到底部
+          setTimeout(() => {
+            this.$scrollToBottom(this.$refs.js_leftCon, true)
+          }, 500)
       }, this);
     },
     // 设置主题
@@ -788,7 +1038,7 @@ export default {
 
             this.$vux.toast.show({
                 type: 'success',
-                time: '2000'
+                time: '1000'
               })
           } else {
             this.$vux.alert.show({
@@ -820,6 +1070,10 @@ export default {
       if(this.likeInfo === '已关注') {
         return false;
       }
+      // 是否登录
+      if(!this.isLogin()){
+       return false
+     }
       const params = {
         source: 2,
         uid: this.enterInfo.roomInfo.ownerId,
@@ -851,6 +1105,17 @@ export default {
       })
       
     },
+    exitLogin () {
+      this.$http.jsonp(this.interface.exitLogin).then(
+          res => {
+            this.loginInfo = '';
+            
+          },
+          errmsg => {
+            console.log(errmsg)
+          }
+        )
+    },
     // 获取房间信息
     getRoomInfo() {
       const params = {
@@ -863,6 +1128,7 @@ export default {
               const data = res.body.data
               this.enterInfo = data;
               this.checkUserType(this.enterInfo)
+              this.editThemeValue = this.enterInfo.roomInfo.topic;
               resolve();
             } else {
               if(res.body.businessKey=='user_baned'){
@@ -874,18 +1140,30 @@ export default {
               if(res.body.businessKey=='user_not_buy_room'){
                   //novip
                   this.isNoVip = true;
-                  return ;
+                  return
               }
               if(res.body.businessKey=='user_not_login'){
                   //没登陆
                   this.checkLogin()
-                  return ;
+                  return
               }
               
             }
          }, this)
       })
       
+    },
+    //获取房间信息
+    getRoomBaseInfo() {
+      const params = {
+        roomId: this.roomId
+      }
+
+      this.$Fetch("getRoomBaseInfo", params, (res) => {
+        if(res.body.resultKey == 'ok') {
+          this.roomBaseInfo = res.body.data.roomInfo;
+        }
+      }, this)
     },
     // 判断用户身份
     checkUserType(info) {
@@ -913,8 +1191,6 @@ export default {
         this.identity = 'user' // 普通用户
       }
     },
-    
-    
     // 是否登录
     isLogin() {
       // 如果没有登录
@@ -960,7 +1236,7 @@ export default {
       }
     },
     init() {
-      const init = Promise.all([this.getloginInfo(),this.getRoomInfo()]).then(
+      Promise.all([this.getloginInfo(), this.getRoomInfo()]).then(
         success => { 
           if(this.isWechat) {
             this.isLogin();
@@ -968,9 +1244,9 @@ export default {
           this.getFollowInfo();
           this.getLeftMsg();
           this.getRightMsg();
-          this.getHistoryList();
+          // 不加载往日信息
+          // this.getHistoryList();
           mqttSession.apply(this);
-          this.containerHeight = this.$refs.container.getBoundingClientRect().height + 'px';
         }
       )
     },
@@ -984,20 +1260,63 @@ export default {
       })
       return false;
     };
-   
+    this.getRoomBaseInfo();
     this.init();
-    
+  },
+  mounted() {
+    const dom = this.$refs.js_RightCon
+    this.myScroll = new IScroll(dom, {
+      mouseWheel: true,
+      bounce: true,
+      // click: true,
+      tap: true,
+      probeType: 2 // 触发scroll事件
+    })
+
+    this.myScroll.on('scrollEnd', () => {
+      const that = this.myScroll
+      this.rightOldY = this.myScroll.y
+      if(this.myScroll.loadMore) {
+        this.showloadmore = true
+        this.loadtext = "正在加载"
+        setTimeout(() => {
+          this.getMoreRight()
+        }, 500)
+      }
+    })
+
+    this.myScroll.on('scroll', () => {
+      const that = this.myScroll
+      const y = parseInt(that.y)
+      if (y > 40){
+        this.noMore = true
+        this.loadtext = "松开加载更多"
+        this.myScroll.loadMore = true
+      }
+    })
     
   },
+  updated() {
+    // this.myScroll.refresh()
+  }
 }
 </script>
 
 <style lang="less">
+
 .liveRoom {
   width:100%;
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+.liveRoom-viewBox #vux_view_box_body{
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.weui-loadmore_line {
+  margin: 0 auto !important;
 }
 .icon {
   /* 通过设置 font-size 来改变图标大小 */
@@ -1023,22 +1342,22 @@ export default {
 }
 
 .head {
-    height: 2.4rem;
-    background: #1F1F2D;
-    color: #fff;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 .4rem;
+  height: 2.4rem;
+  background: #1F1F2D;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 .4rem;
 }
 
 .h-img {
-    width: 1.44rem;
-    height: 1.44rem;
-    border-radius: 50%;
-    background: #fff;
-    border: 2px solid #34343F;
-    overflow: hidden;
+  width: 1.44rem;
+  height: 1.44rem;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #34343F;
+  overflow: hidden;
     img {
       width: 100%;
     }
@@ -1081,30 +1400,39 @@ export default {
 }
 
 .has-like {
-  background: #ccc;
+  background: rgba(255,255,255,.2);
 }
 
 .container {
   flex: 1;
-  
+  display: flex;
+  .c-item {
+    flex: 1;
+  }
 }
 
 .footer {
   padding: .2rem .266667rem;
   width: 100%;
   box-sizing: border-box;
-
+  display: flex;
+  
   .f-btn-edit {
+    padding: 0 .333333rem;
+    flex: 9;
     border-radius: 1.333333rem;
     border: none;
+    display: flex;
+    align-items: center;
     background: #eee;
     text-align: left;
     color: #999999;
-    font-size: 14px ;
+    font-size: 14px;
   }
 
   .f-btn-emoji {
-    padding: 0;
+    flex: 1;
+    padding-left: .266667rem;
     border: none;
     box-sizing: border-box;
     display: flex;
@@ -1121,10 +1449,10 @@ export default {
 
 .c-item {
   background: #f5f5f5;
-  overflow: auto;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
   padding: .4rem 0;
 }
-  
 
 .weui-cell {
   padding: 0 !important;

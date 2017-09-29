@@ -19,21 +19,26 @@
           </header>
           <section class="c-m-content">
             <div class="m-c-con">
+              
               <div class="c-c-answer" 
+               v-if="cData.originalMessageObj" 
               >
-                <div v-html="cData.cbody" :id="`xxx${cData.messageId}`"></div>
                 <div 
-                v-if="cData.originalMessageObj" 
                 class="c-c-question" 
                 >
-                  <div v-html="cData.originalMessageObj._contentText"></div>
+                  <div v-html="`${cData.originalMessageObj.nickName}：${cData.originalMessageObj._contentText}`" :id="`xxx${cData.messageId}`"></div>
                 </div>
-              </div> 
+                <div v-html="`回复：${cData.cbody}`"></div>
+                
+              </div>
+              <div v-else>
+                  <div v-html="cData.cbody" :id="`xxx${cData.messageId}`"></div>
+              </div>
             </div>
             <p class="m-c-opera"  v-if="operation.zhibo">
-              <span class="btn" @click="eventDelGD">
+              <a class="btn" @click="eventDelGD">
                 删除
-              </span>
+              </a>
               <span class="gap"></span>
               <span class="btn" 
               v-clipboard:copy="cData.cbody"
@@ -42,10 +47,10 @@
                 复制
               </span>
               <span class="gap"></span>
-              <span class="btn" v-if="cData.important">      
+              <span class="btn" v-if="isPush">      
                 已推送
               </span>
-              <span @click="eventSendImMsg" class="btn" v-else>      
+              <span @click="eventSendImMsg" class="btn" v-else>
                 推送为重要观点
               </span>
             </p>
@@ -60,11 +65,7 @@
                 黑
               </span>
               <span class="gap"></span>
-              <span class="btn"
-              @click="eventSilenceMethod">
-                禁
-              </span>
-              <span class="gap"></span>
+
               <span class="btn"
               @click = "eventDelUserMethod">
                 删
@@ -91,6 +92,11 @@
                 解答
               </span>
             </p>
+            <p  class="m-c-opera"  v-if="operation.del ">
+              <span class="btn" @click='eventDelUserMethod'>
+                删除
+              </span>
+            </p>
           </section>
         </div>
       </div>
@@ -100,273 +106,298 @@
 </template>
 <script>
 import {BBcode} from '../assets/js/BBcode.js'
-
-import { 
+import {
   Flexbox,
-  FlexboxItem,
+  FlexboxItem
   } from 'vux'
 
 export default {
   name: 'Msg-Manager',
   components: {
     Flexbox,
-    FlexboxItem,
+    FlexboxItem
   },
-  props:['info', 'authority', 'type','interface', 'roomId', 'sub'],
-  data() {
+  props: ['info', 'authority', 'type', 'interface', 'roomId', 'sub', 'userId'],
+  data () {
     return {
       msg: 'Msg-Manager',
-      
+      pushSuccess: false
     }
   },
   computed: {
-    cData() {
-      const obj = this.info;
-      const timeStr = obj.messageTime;
-      obj.formatTime = this.splitTime(timeStr, 'MM-DD hh:mm:ss');
-      const TEACHERSPEAK=['t_s'];
-      const TEACHERANSWER = ['t_rol', 't_ror', 't_rp', 't_ro', 'ta_ror', 'ta_rol', 'ta_rp', 'ta_ro', 'ta_s'];
-      const CUSTOMER = ['u_s', 'u_r', 'u_a'];
-      const HXSERVICE = ['cs_s', 'cs_ro'];
+    cData () {
+      const obj = this.info
+      const timeStr = obj.messageTime
+      obj.formatTime = this.splitTime(timeStr, 'MM-DD hh:mm:ss')
+      const TEACHERSPEAK = ['t_s']
+      const TEACHERANSWER = ['t_rol', 't_ror', 't_rp', 't_ro']
+      const ASSISTANT = ['ta_ror', 'ta_rol', 'ta_rp', 'ta_ro', 'ta_s']
+      const CUSTOMER = ['u_s', 'u_r', 'u_a']
+      const HXSERVICE = ['cs_s', 'cs_ro']
       const HOST = ['zc_s', 'zc_rp', 'zc_ro', 'zc_rol', 'zc_ror']
-      const SYSTEM = ['topic', 'ad_robot_room', 'ad_robot_all', 'room_sys_msg', 'gift', 'announcement', 'speak_policy', 'update_room'];
-      if(typeof(obj.body) !== 'undefined') {
+      const SYSTEM = ['topic', 'ad_robot_room', 'ad_robot_all', 'room_sys_msg', 'gift', 'announcement', 'speak_policy', 'update_room', 't_pum']
+      if (typeof (obj.body) !== 'undefined') {
         obj.cbody = this.bbcode(obj.body)
       }
-
-      if(TEACHERSPEAK.indexOf(obj.type) != -1) {
-        obj.class = 'manager-speak';
+      // p-right 居左 p-left 居右
+      if (TEACHERSPEAK.indexOf(obj.type) != -1) {
+        obj.class = 'manager-speak p-left arrow-left'
         obj.level = '老师'
       } else if (TEACHERANSWER.indexOf(obj.type) != -1) {
-        obj.class = 'manager-answer';
+        obj.class = 'manager-answer p-left arrow-left'
         obj.level = '老师'
+      } else if (ASSISTANT.indexOf(obj.type) != -1) {
+        obj.class = 'manager-answer p-left arrow-left'
+        obj.level = '助理'
       } else if (CUSTOMER.indexOf(obj.type) != -1) {
-        obj.class = 'customer';
-        if(obj.isVip) {
+        obj.class = 'customer arrow-right p-right'
+        if (obj.isTeachersStudent) {
           obj.level = 'VIP'
         } else {
           obj.level = '普通'
         }
-        
       } else if (SYSTEM.indexOf(obj.type) != -1) {
-        obj.class = 'system';
-        obj.cbody = obj.value || obj.cbody;
+        obj.class = 'system p-right arrow-left'
+        obj.cbody = obj.value || obj.cbody
         obj.level = '系统消息';
+
         obj.userImage = require('@/assets/system.png')
-        if(obj.type == 'gift') { // 送礼
-          obj.cbody = `${obj.userName}送给老师${obj.giftNum}${obj.giftUnit}${obj.giftName}`
-        }else if(obj.type = 'speak_policy') { // 更改发言权限
-          if(obj.value == 'vip') {
+        if (obj.type == 'gift') { // 送礼
+          obj.class = 'arrow-left'
+          obj.cbody = `${obj.userName}送给老师${obj.giftNum}${obj.giftUnit}${obj.giftName}<img src="${obj.giftImgUrl}">`
+        } else if (obj.type == 'speak_policy') { // 更改发言权限
+          obj.class = 'arrow-left'
+          if (obj.value == 'vip') {
             obj.cbody = '房间发言权限已变更，仅限vip用户可以发言'
           }
-          if(obj.value == 'none') {
+          if (obj.value == 'none') {
             obj.cbody = '房间发言权限已变更，所有人都不可以发言'
           }
-          if(obj.value == 'all') {
+          if (obj.value == 'all') {
             obj.cbody = '房间发言权限已变更，所有人都可以发言'
           }
+        } else if (obj.type == 't_pum') {
+          obj.level = '学员反馈';
+          obj.nickName = '';
+          let regStr = /([^:：]+)[:：]/;
+          regStr.test(obj.cbody);
+          let str = RegExp.$1;
+          obj.cbody = obj.cbody.replace(RegExp.$1, '<span style="color: #00a0e9">' + str +'</span>')
         }
-      } else if (HXSERVICE.indexOf(obj.type) != -1){
-        obj.class = 'service';
-        obj.level = '和讯客服';
+      } else if (HXSERVICE.indexOf(obj.type) != -1) {
+        obj.class = 'service p-right arrow-right'
+        obj.level = '和讯客服'
       } else if (HOST.indexOf(obj.type) != -1) {
-        obj.level = '主持人';
+        obj.class = 'arrow-left p-left'
+        obj.level = '主持人'
       }
-      
-      if(typeof (obj.originalMessage)!='undefined') {
+      if (typeof (obj.originalMessage) != 'undefined') {
         obj.originalMessageObj = JSON.parse(obj.originalMessage)
-        obj.originalMessageObj._contentText = this.bbcode( this.filter(obj.originalMessageObj.body))
+        obj.originalMessageObj._contentText = this.bbcode(this.filter(obj.originalMessageObj.body))
       }
-      
-      return obj;
+      return obj
     },
-    operation() {
+    operation () {
       return {
-        zhibo: this.cData.class != 'system'  && this.authority.operation && this.type == '直播观点',
-        hudong: this.cData.class != 'system' && this.cData.type != 'u_a' && this.cData.class !="service" && this.authority.operation && this.type == '互动交流' && this.cData.level != '老师',
-        huifu: this.authority.answerService && this.type == '互动交流' && this.cData.class == 'service',
-        jieda: this.cData.class != 'system' && this.cData.type == 'u_a' && this.cData.class !="service" && this.authority.operation && this.type == '互动交流' && this.cData.level != '老师',
+        zhibo: this.cData.level != '系统消息' && this.authority.operation && this.type == '直播观点',
+        hudong: this.cData.level != '系统消息' && this.cData.type != 'u_a' && this.cData.level != "和讯客服" && this.authority.operation && this.type == '互动交流' && this.cData.level != '老师' && this.cData.level != '助理',
+        huifu: this.userId != this.cData.userId && ((this.authority.answerService && this.type == '互动交流' && this.cData.level == '和讯客服' && this.cData.type != 'cs_ro') || (this.authority.answerUser && this.type == '互动交流' && this.cData.type == 'u_s')),
+        jieda: this.cData.level != '系统消息' && this.cData.type == 'u_a' && this.cData.level != "和讯客服" && this.authority.operation && this.type == '互动交流' && this.cData.level != '老师',
+        del: this.authority.operation && (this.cData.type == 'ta_ror' || this.cData.type == 't_ror')
+      }
+    },
+    isPush () {
+      if (this.cData.important || this.pushSuccess) {
+        return true
+      } else {
+        return false
       }
     }
   },
   methods: {
     // 20170616160629
-    splitTime(timeStr, format = 'YYYY-MM-DD hh:mm:ss') {
-      timeStr = String(timeStr);
+    splitTime (timeStr, format = 'YYYY-MM-DD hh:mm:ss') {
+      timeStr = String(timeStr)
       let date = {
         "Y+": timeStr.substr(0, 4),
         "M+": timeStr.substr(4, 2),
         "D+": timeStr.substr(6, 2),
         "h+": timeStr.substr(8, 2),
         "m+": timeStr.substr(10, 2),
-        "s+": timeStr.substr(12, 2),
-      };
+        "s+": timeStr.substr(12, 2)
+      }
 
       for (let k in date) {
         if (new RegExp("(" + k + ")").test(format)) {
           format = format.replace(RegExp.$1, date[k])
         }
       }
-      return format;
+      return format
     },
-    filter(a,i){
-      let  f='',s='',
-            input=/(\&lt;\u0073\u0063\u0072\u0069\u0070\u0074(.+?)\/\u0073\u0063\u0072\u0069\u0070(.+?)\&gt;)|(\&lt;\u0069\u0066\u0072\u0061\u006d\u0065(.+?)\/\u0069\u0066\u0072\u0061\u006d(.+?)\&gt;)|(\&lt;\u0066\u006f\u006e\u0074(.+?)size(.+?)\/\u0066\u006f\u006e(.+?)\&gt;)|(\&lt;\u0076\u0069\u0064\u0065\u006f(.+?)\/\u0076\u0069\u0064\u0065(.+?)\&gt;)|(\&lt;\u0061\u0075\u0064\u0069\u006f(.+?)\/\u0061\u0075\u0064\u0069(.+?)\&gt;)|(\u0063\u006f\u006e\u0074\u0065\u006e\u0074\u0065\u0064\u0069\u0074\u0061\u0062\u006c\u0065)|(\&lt;\u0070\u0072\u0065(.+?)\/\u0070\u0072(.+?)\&gt;)|(\&lt;\u0074\u0065\u0078\u0074\u0061\u0072\u0065\u0061(.+?)\/\u0074\u0065\u0078\u0074\u0061\u0072\u0065(.+?)\&gt;)|(\&lt;\u006d\u0065\u0074\u0061(.+?)\&gt;)|(\&lt;\u0062\u0075\u0074\u0074\u006f\u006e(.+?)\&gt;)|(\&lt;\u006f\u0062\u006a\u0065\u0063\u0074(.+?)\/\u006f\u0062\u006a\u0065\u0063\u0074)|(\&lt;\u0065\u006d\u0062\u0065\u0064(.+?)\/\u0065\u006d\u0062\u0065\u0064)|(\&lt;\u006c\u0069\u006e\u006b)|(\&lt;\u0073\u0065\u006c\u0065\u0063\u0074(.+?)\/\u0073\u0065\u006c\u0065\u0063\u0074)|(\&lt;\u0073\u0076\u0067(.+?)\/\u0073\u0076\u0067)|(\&lt;\u0062\u006f\u0064\u0079(.+?))|(\&lt;\u0068\u0074\u006d\u006c(.+?))|(\&lt;\u0068\u0065\u0061\u0064(.+?))|(\&lt;\u0074\u0069\u0074\u006c\u0065(.+?))|(\&lt;\u0075(.+?)\&lt;\/\u0075)|(\&lt;\u0069(.+?)\&lt;\/\u0069)|(\&lt;\u0073(.+?)\&lt;\/\u0073)|(\&lt;\u0066\u006f\u0072\u006d(.+?)\&lt;\/\u0066\u006f\u0072\u006d)|(\&lt;\u006d\u0065\u006e\u0075(.+?)\/\u006d\u0065\u006e\u0075)|(\&lt;\u0066\u0069\u0065\u006c\u0064\u0073\u0065\u0074(.+?)\/\u0066\u0069\u0065\u006c\u0064\u0073\u0065\u0074)|(\&lt;\u006f\u0070\u0074\u0069\u006f\u006e(.+?)\/\u006f\u0070\u0074\u0069\u006f\u006e)|(\&lt;\u006d\u0061\u0070(.+?)\/\u006d\u0061\u0070)|(\&lt;\u0061\u0072\u0065\u0061)|(\&lt;\u0070\u0072\u006f\u0067\u0072\u0065\u0073\u0073)|(\&lt;\u0076\u0061\u0072)|(\&lt;\u0063\u006f\u0064\u0065)|(\&lt;\u006d\u0061\u0072\u0071\u0075\u0065\u0065)|(\&lt;\u0078\u006d\u0070)|(\&lt;\u0062\u0067\u0073\u006f\u0075\u006e\u0064)|(\&lt;\u0066\u0072\u0061\u006d\u0065\u0073\u0065\u0074)|(\&lt;\u0062\u0061\u0073\u0065)|(\&lt;\u0062\u0069\u0067)|(\&lt;\u0062\u006c\u0069\u006e\u006b)|(\&lt;\u0066\u0072\u0061\u006d\u0065)|(\&lt;\u006d\u0075\u006c\u0074\u0069\u0070\u006c\u0065)|(\&lt;\u006e\u006f\u0066\u0072\u0061\u006d\u0065)|(\&lt;\u0073\u0075\u0062)|(\&lt;\u0073\u0075\u0070)|(\&lt;\u0074\u0061\u0062\u006c\u0065)|(\&lt;\u0074\u0069\u0074\u006c\u0065)/ig,
-          output=/(<script(.+?)\<\/scrip(.+?)>)|(<iframe(.+?)<\/ifram(.+?)>)|(size=['|"](.+?)['|"])|(javascript)|(onclick)|(onmousedown)|(onmouseup)|(onmousemove)|(face=['|"](.+?)['|"])|(<video(.+?)\/vide(.+?)>)|(<audio(.+?)\/audi(.+?)>)|(contenteditable)|(<pre(.+?)\/pr(.+?)>)|(<textarea(.+?)\/textare(.+?)>)|(<(.+?)?meta(.+?)>)|(<button(.+?)>)|(<object(.+?)\/objec(.+?)>)|(<embed(.+?)\/embe(.+?)>)|(<link(.+?)>)|(<select(.+?)\/selec(.+?)>)|(<svg(.+?)\/sv(.+?)>)|(<body(.+?))|(<html(.+?))|(<head(.+?))|(<title(.+?))|(<u>(.+?)<\/u>)|(<i(.+?)<\/i)|(<s>(.+?)<\/s>)|(<form(.+?)\/form)|(<menu(.+?)<(.+?)menu)|(<fieldset(.+?)\/fieldset)|(<option(.+?)\/option)|(<map(.+?)\/map)|(<area)|(<progress)|(<var)|(<code)|(<marquee)|(<xmp)|(<bgsound)|(<frameset)|(<base)|(<big)|(<blink)|(<frame)|(<multiple)|(<noframe)|(<sub)|(<sup)|(<table)|(<title)|(style=["|'](.+?)["|'])|(class=["|'](.+?)["|'])|(id=["|'](.+?)["|'])|(width=["|'](.+?)["|'])|(height=["|'](.+?)["|'])|(size=["|'](.+?)["|'])|(weight=["|'](.+?)["|'])/ig;
-      a=a.replace(/(<input(.+?)>)|(style=["|']([\s\S)]*?)["|'])|(class=["|']([\s\S)]*?)["|'])|(id=["|']([\s\S)]*?)["|'])/gi,s);
-      a=a.replace(/(<div)|(<h[1-6])/ig,'<p').replace(/(<\/div)|(<\/h[1-6])/ig,'</p');
-      a=a.replace(input,f);
-      return a.replace(output,f);
-	  },
-    bbcode(body) {
-      const codejs = new BBcode();
-      return codejs.ins(body).toHTML('face').toHTML('img').toHTML('url').toHTML('at').out();
+    filter (a, i) {
+      let f = ''
+      let s = ''
+      let input = /(\&lt;\u0073\u0063\u0072\u0069\u0070\u0074(.+?)\/\u0073\u0063\u0072\u0069\u0070(.+?)\&gt;)|(\&lt;\u0069\u0066\u0072\u0061\u006d\u0065(.+?)\/\u0069\u0066\u0072\u0061\u006d(.+?)\&gt;)|(\&lt;\u0066\u006f\u006e\u0074(.+?)size(.+?)\/\u0066\u006f\u006e(.+?)\&gt;)|(\&lt;\u0076\u0069\u0064\u0065\u006f(.+?)\/\u0076\u0069\u0064\u0065(.+?)\&gt;)|(\&lt;\u0061\u0075\u0064\u0069\u006f(.+?)\/\u0061\u0075\u0064\u0069(.+?)\&gt;)|(\u0063\u006f\u006e\u0074\u0065\u006e\u0074\u0065\u0064\u0069\u0074\u0061\u0062\u006c\u0065)|(\&lt;\u0070\u0072\u0065(.+?)\/\u0070\u0072(.+?)\&gt;)|(\&lt;\u0074\u0065\u0078\u0074\u0061\u0072\u0065\u0061(.+?)\/\u0074\u0065\u0078\u0074\u0061\u0072\u0065(.+?)\&gt;)|(\&lt;\u006d\u0065\u0074\u0061(.+?)\&gt;)|(\&lt;\u0062\u0075\u0074\u0074\u006f\u006e(.+?)\&gt;)|(\&lt;\u006f\u0062\u006a\u0065\u0063\u0074(.+?)\/\u006f\u0062\u006a\u0065\u0063\u0074)|(\&lt;\u0065\u006d\u0062\u0065\u0064(.+?)\/\u0065\u006d\u0062\u0065\u0064)|(\&lt;\u006c\u0069\u006e\u006b)|(\&lt;\u0073\u0065\u006c\u0065\u0063\u0074(.+?)\/\u0073\u0065\u006c\u0065\u0063\u0074)|(\&lt;\u0073\u0076\u0067(.+?)\/\u0073\u0076\u0067)|(\&lt;\u0062\u006f\u0064\u0079(.+?))|(\&lt;\u0068\u0074\u006d\u006c(.+?))|(\&lt;\u0068\u0065\u0061\u0064(.+?))|(\&lt;\u0074\u0069\u0074\u006c\u0065(.+?))|(\&lt;\u0075(.+?)\&lt;\/\u0075)|(\&lt;\u0069(.+?)\&lt;\/\u0069)|(\&lt;\u0073(.+?)\&lt;\/\u0073)|(\&lt;\u0066\u006f\u0072\u006d(.+?)\&lt;\/\u0066\u006f\u0072\u006d)|(\&lt;\u006d\u0065\u006e\u0075(.+?)\/\u006d\u0065\u006e\u0075)|(\&lt;\u0066\u0069\u0065\u006c\u0064\u0073\u0065\u0074(.+?)\/\u0066\u0069\u0065\u006c\u0064\u0073\u0065\u0074)|(\&lt;\u006f\u0070\u0074\u0069\u006f\u006e(.+?)\/\u006f\u0070\u0074\u0069\u006f\u006e)|(\&lt;\u006d\u0061\u0070(.+?)\/\u006d\u0061\u0070)|(\&lt;\u0061\u0072\u0065\u0061)|(\&lt;\u0070\u0072\u006f\u0067\u0072\u0065\u0073\u0073)|(\&lt;\u0076\u0061\u0072)|(\&lt;\u0063\u006f\u0064\u0065)|(\&lt;\u006d\u0061\u0072\u0071\u0075\u0065\u0065)|(\&lt;\u0078\u006d\u0070)|(\&lt;\u0062\u0067\u0073\u006f\u0075\u006e\u0064)|(\&lt;\u0066\u0072\u0061\u006d\u0065\u0073\u0065\u0074)|(\&lt;\u0062\u0061\u0073\u0065)|(\&lt;\u0062\u0069\u0067)|(\&lt;\u0062\u006c\u0069\u006e\u006b)|(\&lt;\u0066\u0072\u0061\u006d\u0065)|(\&lt;\u006d\u0075\u006c\u0074\u0069\u0070\u006c\u0065)|(\&lt;\u006e\u006f\u0066\u0072\u0061\u006d\u0065)|(\&lt;\u0073\u0075\u0062)|(\&lt;\u0073\u0075\u0070)|(\&lt;\u0074\u0061\u0062\u006c\u0065)|(\&lt;\u0074\u0069\u0074\u006c\u0065)/ig
+      let output = /(<script(.+?)\<\/scrip(.+?)>)|(<iframe(.+?)<\/ifram(.+?)>)|(size=['|"](.+?)['|"])|(javascript)|(onclick)|(onmousedown)|(onmouseup)|(onmousemove)|(face=['|"](.+?)['|"])|(<video(.+?)\/vide(.+?)>)|(<audio(.+?)\/audi(.+?)>)|(contenteditable)|(<pre(.+?)\/pr(.+?)>)|(<textarea(.+?)\/textare(.+?)>)|(<(.+?)?meta(.+?)>)|(<button(.+?)>)|(<object(.+?)\/objec(.+?)>)|(<embed(.+?)\/embe(.+?)>)|(<link(.+?)>)|(<select(.+?)\/selec(.+?)>)|(<svg(.+?)\/sv(.+?)>)|(<body(.+?))|(<html(.+?))|(<head(.+?))|(<title(.+?))|(<u>(.+?)<\/u>)|(<i(.+?)<\/i)|(<s>(.+?)<\/s>)|(<form(.+?)\/form)|(<menu(.+?)<(.+?)menu)|(<fieldset(.+?)\/fieldset)|(<option(.+?)\/option)|(<map(.+?)\/map)|(<area)|(<progress)|(<var)|(<code)|(<marquee)|(<xmp)|(<bgsound)|(<frameset)|(<base)|(<big)|(<blink)|(<frame)|(<multiple)|(<noframe)|(<sub)|(<sup)|(<table)|(<title)|(style=["|'](.+?)["|'])|(class=["|'](.+?)["|'])|(id=["|'](.+?)["|'])|(width=["|'](.+?)["|'])|(height=["|'](.+?)["|'])|(size=["|'](.+?)["|'])|(weight=["|'](.+?)["|'])/ig
+      let b = a.replace(/(<input(.+?)>)|(style=["|']([\s\S)]*?)["|'])|(class=["|']([\s\S)]*?)["|'])|(id=["|']([\s\S)]*?)["|'])/gi, s)
+      b = b.replace(/(<div)|(<h[1-6])/ig, '<p').replace(/(<\/div)|(<\/h[1-6])/ig, '</p')
+      b = b.replace(input, f)
+      return b.replace(output, f)
     },
-    eventAnswerMethod(who, msgId, isChoseType) {   
-      if(this.authority.operation) {
-        isChoseType = true;
-      }   
+    bbcode (body) {
+      const codejs = new BBcode()
+      return codejs.ins(body).toHTML('face').toHTML('img').toHTML('url').toHTML('at').out()
+    },
+    // who 回复谁，回复的ID 是否选择回复的方式
+    eventAnswerMethod (who, msgId, isChoseType) {
+      if (this.authority.operation) {
+        isChoseType = true
+      }
       const params = {
-          name: who,
-          msgId: msgId,
-          type: isChoseType
-        }
-      
+        name: who || '',
+        msgId: msgId,
+        type: isChoseType
+      }
+
       this.$emit('answerMethod', params)
     },
-    eventExplainMethod(who, msgId) {
+    eventExplainMethod (who, msgId) {
       const params = {
-          name: who,
-          msgId: msgId,
-        }
+        name: who,
+        msgId: msgId
+      }
       this.$emit('explainMethod', params)
     },
-    onCopy() {
+    onCopy () {
       this.$vux.toast.show({
         type: 'success',
-        time: '2000'
+        time: '1000'
       })
-
     },
-    onError() {
+    onError () {
       this.$vux.toast.show({
-        type: 'cancel',
-        time: '2000'
+        width: '18.3em',
+        type: 'warn',
+        text: '当前浏览器不支持此功能！<br>请长按文本复制',
+        time: '1000'
       })
     },
     // 删除观点
-    eventDelGD() {
+    eventDelGD () {
+      console.log('xoap,')
       this.$vux.confirm.show({
-        content: '你确定删除本条观点么？',
-
-        onConfirm: () =>{
-          this.delMsg();
-        },
-      }) 
+        content: '您确定删除本条观点么？',
+        onConfirm: () => {
+          this.delMsg()
+        }
+      })
     },
     // 推送重要观点
-    eventSendImMsg() {
+    eventSendImMsg () {
+      console.log('xoap,')
       const params = {
-        msgId: this.info.messageId,
+        msgId: this.info.messageId
       }
-      this.$Fetch("setImMsg", params, (res)=> {
-        if(res.body.resultKey == 'ok') {
+      this.$Fetch("setImMsg", params, (res) => {
+        if (res.body.resultKey == 'ok') {
           this.$emit('delMethod', this.sub)
+          const str = res.body.data.msg.split('，')
           this.$vux.toast.show({
-            text: res.body.data.msg,
-            time: '2000'
+            text: `<p style="font-size:16px;">${str[0]}</p><p style="font-size:14px">${str[1]}<p>`,
+            time: '1000',
+            width: '11.3em'
           })
+          this.pushSuccess = true
         } else {
-            this.$vux.alert.show({
+          this.$vux.alert.show({
             title: '系统提示',
-            content: res.body.errorMessage,
+            content: res.body.errorMessage
           })
         }
       }, this)
     },
     // 拉黑用户
-    eventBlackMethod() {
+    eventBlackMethod () {
       this.$vux.confirm.show({
-        content: `你确定,需要把当前用户</br>${this.cData.nickName}残忍的拉入黑名单么？`,
+        content: `您确定，需要把当前用户</br>${this.cData.nickName}残忍的拉入黑名单么？`,
         onConfirm: () => {
           const params = {
             roomId: this.roomId,
             userId: this.cData.userId,
             startTime: '1970-01-01',
-            endTime: '9999-12-31',
+            endTime: '9999-12-31'
           }
           this.$Fetch("addUserBlackList", params, (res) => {
-            if(res.body.resultKey == 'ok') {
+            if (res.body.resultKey == 'ok') {
             // this.$emit('delMethod', this.sub)
               this.$vux.toast.show({
                 type: 'success',
-                time: '2000'
+                time: '1000'
               })
             } else {
-                this.$vux.alert.show({
+              this.$vux.alert.show({
                 title: '系统提示',
-                content: res.body.errorMessage,
+                content: res.body.errorMessage
               })
             }
-          }, this)  
-
+          }, this)
         }
       })
     },
     // 踢人
-    eventKickMethod() {
+    eventKickMethod () {
       this.$vux.confirm.show({
-        content: `你确定,需要把当前用户</br>${this.cData.nickName}踢出直播室么？`,
+        content: `您确定，需要把当前用户</br>${this.cData.nickName}踢出直播室么？`,
         onConfirm: () => {
           const params = {
             roomId: this.roomId,
-            userId: this.cData.userId,
+            userId: this.cData.userId
           }
-          this.$Fetch("addUserBlackList", params, (res) => {
-            if(res.body.resultKey == 'ok') {
+          this.$Fetch("kickUser", params, (res) => {
+            if (res.body.resultKey == 'ok') {
             // this.$emit('delMethod', this.sub)
               this.$vux.toast.show({
                 type: 'success',
-                time: '2000'
+                time: '1000'
               })
             } else {
-                this.$vux.alert.show({
+              this.$vux.alert.show({
                 title: '系统提示',
-                content: res.body.errorMessage,
+                content: res.body.errorMessage
               })
             }
-          }, this)  
+          }, this)
         }
       })
     },
-    //禁言
-    eventSilenceMethod() {
+    // 禁言
+    eventSilenceMethod () {
       this.$vux.confirm.show({
-        content: `你确定,需要把当前用户</br>${this.cData.nickName}残忍的禁言么？`,
+        content: `您确定，需要把当前用户</br>${this.cData.nickName}残忍的禁言么？`,
         onConfirm: () => {
           const params = {
             roomId: this.roomId,
-            userId: this.cData.userId,
+            userId: this.cData.userId
           }
-          this.$Fetch("addUserBlackList", params, (res) => {
-            if(res.body.resultKey == 'ok') {
+          this.$Fetch("silenceUser", params, (res) => {
+            if (res.body.resultKey == 'ok') {
             // this.$emit('delMethod', this.sub)
               this.$vux.toast.show({
                 type: 'success',
-                time: '2000'
+                time: '1000'
               })
             } else {
-                this.$vux.alert.show({
+              this.$vux.alert.show({
                 title: '系统提示',
-                content: res.body.errorMessage,
+                content: res.body.errorMessage
               })
             }
-          }, this)  
+          }, this)
         }
       })
     },
-    //删除
-    eventDelUserMethod() {
+    // 删除
+    eventDelUserMethod () {
       this.$vux.confirm.show({
         content: `您确定，需要把当前用户</br>${this.cData.nickName}发表的信息删除么？`,
         onConfirm: () => {
@@ -374,31 +405,26 @@ export default {
         }
       })
     },
-    delMsg() {
+    delMsg () {
       const params = {
         roomId: this.roomId,
         msgId: this.info.messageId
       }
 
-      this.$Fetch("delMessage", params, (res)=> {
-        if(res.body.resultKey == 'ok') {
-    
+      this.$Fetch("delMessage", params, (res) => {
+        if (res.body.resultKey == 'ok') {
           this.$vux.toast.show({
             type: 'success',
-            time: '2000'
+            time: '1000'
           })
         } else {
-            this.$vux.alert.show({
+          this.$vux.alert.show({
             title: '系统提示',
-            content: res.body.errorMessage,
+            content: res.body.errorMessage
           })
         }
       }, this)
     }
-  },
-
-  mounted() {
-   
   }
 }
 </script>
@@ -414,7 +440,7 @@ export default {
   }
   .c-img {
     align-self: flex-start;
-    padding-top: .85rem;
+    padding-top: .8rem;
     width: 1.6rem;
     box-sizing: border-box;
     display: flex;
@@ -431,19 +457,25 @@ export default {
   .c-msg {
     width: 6.813333rem;
     box-sizing: border-box;
+    padding: 0 .133333rem;
   }
 
   .c-m-head {
     display: flex;
     justify-content: flex-start;
     align-items: center;
+    line-height: .533333rem;
     span {
       white-space: nowrap;
     }
 
     .m-h-char {
-      padding: .04rem .213333rem;
-      margin: 0 .066667rem;
+      padding: 0 .213333rem;
+      display: flex;
+      align-items: center;
+      height: .48rem;
+      box-sizing: border-box;
+      margin: 0 .133333rem;
       border-radius: 1.333333rem;
       color: #fff;
       background: #EE5151;
@@ -451,7 +483,7 @@ export default {
 
     .m-h-time {
       color: #C2C2C2;
-      margin-left: .24rem;
+      margin-left: .133333rem;
 
     }
   }
@@ -459,20 +491,30 @@ export default {
   .c-m-content {
     margin: .2rem 0;
     background: #BEE4FB;
-    padding: .333333rem .266667rem;
+    padding: .266667rem;
     border-radius: 5px;
     position: relative;
     word-wrap: break-word;
     font-size: 15px;
+    display: inline-block;
+    max-width: 6.813333rem;
+    line-height: .67rem;
+    .m-c-con {
+      img {
+        max-width: 100%;
+      }
+    }
     .m-c-opera {
       display: flex;
       justify-content: flex-end;
       align-items: center;
-      padding-top: .333333rem;
+      padding-top: .266667rem;
       font-size: 12px;
+      line-height: .67rem;
       .btn {
         color:#049DFF;
         padding: 0 .266667rem;
+        cursor: pointer;
       }
       .gap {
         height: .346667rem;
@@ -481,21 +523,48 @@ export default {
       }
     }
   }
-
-  .c-m-content::after {
-    content: '';
-    display: block;
-    width: 0;
-    height: 0;
-    border-top: .24rem solid transparent;
-    border-right: .24rem solid #BEE4FB;
-    border-bottom: .24rem solid transparent;
-    position: absolute;
-    top: .40rem;
-    left: -.213333rem;
-    
+  .p-right {
+   
+    .c-c-question {
+      background: #f2f2f2;
+    }
   }
-
+  .arrow-left {
+    .c-m-content::after {
+      content: '';
+      display: block;
+      width: 0;
+      height: 0;
+      border-top: .24rem solid transparent;
+      border-right: .24rem solid #BEE4FB;
+      border-bottom: .24rem solid transparent;
+      position: absolute;
+      top: .33rem;
+      left: -.213333rem;
+      }
+    }
+  .p-left {
+    
+    .c-c-question {
+      background: #9dd4f3 ;
+    }
+ 
+  }
+   .arrow-right {
+    .c-m-content::after {
+        content: '';
+        display: block;
+        width: 0;
+        height: 0;
+        position: absolute;
+        border-right: none;
+        border-top: .24rem solid transparent;
+        border-left: .24rem solid #fff;
+        border-bottom: .24rem solid transparent;
+        top: .33rem;
+        right: -.213333rem;
+      }
+    }
   .manager-speak,.manger-answer {
     .m-h-char {
       background: #EE5151;
@@ -504,11 +573,11 @@ export default {
 
  
   .c-c-question {
-      background: #F2F2F2;
       // background: red;
-      margin-top: .333333rem;
-      padding: .333333rem .266667rem;
+      margin-bottom: .266667rem;
+      padding: .266667rem .266667rem;
       border-radius: 5px;
+      word-break: break-all;
     }
 
   .customer {
@@ -524,15 +593,9 @@ export default {
     }
     .c-m-content {
       background: #fff;
+      float: right;
     }
-    .c-m-content::after {
-      border-right: none;
-      border-top: .24rem solid transparent;
-      border-left: .24rem solid #fff;
-      border-bottom: .24rem solid transparent;
-      top: .40rem;
-      left: 6.8rem;
-    }
+    
     .c-m-head {
       display: flex;
       justify-content: flex-end;
@@ -554,29 +617,14 @@ export default {
     }
     .c-m-content {
       background: #fff;
+      float: right;
     }
-    .c-m-content::after {
-      border-right: none;
-      border-top: .133333rem solid transparent;
-      border-left: .266667rem solid #fff;
-      border-bottom: .133333rem solid transparent;
-      top: .266667rem;
-      left: 6.8rem;
-    }
+
     .m-h-char {
       background: #049DFF;
     }
   }
 }
 
-.left {
-  .c-c-question {
-    background: #9dd4f3;
-  }
-}
-.right {
-  .c-c-question {
-    background: #f2f2f2;
-  }
-}
+
 </style>

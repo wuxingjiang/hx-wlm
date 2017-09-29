@@ -11,7 +11,7 @@
           <div class="edit-theme-group-textarea">
             <div  class="e-t-g-t-con" @click="eventGetFours">
               <x-textarea 
-              v-if="type === 'textArea'"
+              v-if="isAndroid4"
               :height="100"
               :show-counter="false"
               :max="max"
@@ -21,7 +21,7 @@
               id="editor-trigger"
               ref="quillEdit"
               :class="['e-t-g-t-c-edit', editType == 'send'?'':'e-t-g-t-c-edit-other']"
-              v-if="type === 'wuEdit'"
+              v-if="type === 'wuEdit' && !isAndroid4"
               v-model = "editValue"
               >
               </div>
@@ -43,7 +43,7 @@
             </input-count>
             <check-icon class="e-t-g-t-f-type" v-else v-model="isQuestion">向老师提问</check-icon>
             <div class="e-t-g-t-f-group">
-              <div v-if="type === 'wuEdit'" class="e-t-g-t-f-g-smile">
+              <div v-if="type === 'wuEdit' && !isAndroid4" class="e-t-g-t-f-g-smile">
                 <x-button
                   class="f-g-b-emoji"
                   @click.native="setEmojiShow"
@@ -76,6 +76,7 @@
              :key='index'
              >
               <flexbox
+              class="emoji-container-warp"
                wrap="wrap"
                :gutter="0"
                justify="flex-start"
@@ -99,6 +100,8 @@
              </swiper-item>
           </swiper>      
           <input-placeholder 
+          ref="mPlaceholder"
+          @click.native="eventGetFours"
           v-if="placeholderShow" 
           :placeholder='placeholder' 
           class="e-t-g-t-g-placeholder"></input-placeholder>
@@ -113,18 +116,19 @@
 import InputCount from '@/components/InputCount.vue'
 import InputPlaceholder from '@/components/InputPlaceholder.vue'
 import CheckIcon from '@/components/CheckIcon.vue'
-import { 
+import Quill from 'quill'
+import {
   Group,
   XButton,
   Popup,
   TransferDom,
-  XTextarea ,
+  XTextarea,
   WechatEmotion as Emotion,
   Divider,
   Swiper,
   SwiperItem,
   Flexbox,
-  FlexboxItem,
+  FlexboxItem
   } from 'vux'
 
 export default {
@@ -132,8 +136,7 @@ export default {
   directives: {
     TransferDom
   },
-  props:['max', 'editShow', 'value', 'title', 'type', 'placeholder', 'editType', 'identity', 'authority','editemojiShow'],
-
+  props: ['max', 'editShow', 'value', 'title', 'type', 'placeholder', 'editType', 'identity', 'authority', 'editemojiShow', 'isAndroid4'],
   components: {
     Group,
     XButton,
@@ -147,204 +150,228 @@ export default {
     FlexboxItem,
     CheckIcon,
     'input-count': InputCount,
-    'input-placeholder':InputPlaceholder,
+    'input-placeholder': InputPlaceholder
   },
-  data() {
+  data () {
     return {
       msg: 'TextAreaGroup',
-      editLength:'',
+      editLength: '',
       editValue: this.value,
       quill: '',
       needDel: '', // emoji是否需要删除
-      editDom: '',
-      isQuestion: false,
+      editDom: null,
+      isQuestion: false
     }
   },
   computed: {
-    placeholderShow() {
+    placeholderShow () {
       const arr = ['wuEdit', 'textArea']
-
-      return !this.editLength && arr.indexOf(this.type) != -1;
+      return !this.editLength && arr.indexOf(this.type) != -1
     },
-    insetPlacehold() {
-       const arr = ['send']
-
-      return  arr.indexOf(this.editType) == -1;
+    insetPlacehold () {
+      const arr = ['send']
+      return arr.indexOf(this.editType) == -1
     },
-    issend() {
-      return !!this.editValue.trim();
+    issend () {
+      return !!this.editValue.trim()
     },
-    selfEditShow() {
-      return this.editShow;
+    selfEditShow () {
+      return this.editShow
     },
-    disabled() {
-      return !this.editLength;
+    disabled () {
+      return !this.editLength
     },
-    emojiArr() {
-      let emoji = new Array(64).toString().split(',').map((item,index) => {return index});
-      let len = emoji.length;
-      let gap = 24;
+    emojiArr () {
+      let emoji = new Array(64).toString().split(',').map((item, index) => {
+        return index
+      })
+      let len = emoji.length
+      let gap = 24
       const arr = []
-      for(let i = 0; i <= len; i+= gap) {
-        console.log(i);
+      for (let i = 0; i <= len; i += gap) {
         arr.push(emoji.slice(i, i + gap))
       }
-      return arr;
+      return arr
     },
-    question() {//显示向老师提问按钮
-      return (this.identity == 'user' || this.identity =='vipUser') && this.editType == 'send'
-    }, 
+    question () { // 显示向老师提问按钮
+      return (this.identity == 'user' || this.identity == 'vipUser') && this.editType == 'send'
+    }
   },
   watch: {
-    editValue(val) {
-      const len = val.length;
-      if(this.type === 'textArea') {
-        this.editLength = len;
+    editValue (val) {
+      if (val && (this.type === 'textArea' || this.isAndroid4)) {
+        this.editLength = val.length
       }
-      if(!val && this.type == 'wuEdit') {
-        this.resetEditDom();
+      if (!val) {
+        this.resetEditDom()
       }
-      if(val.trim()) {
+      if (val && val.trim()) {
         this.$emit('input', val)
       }
     },
-    editLength(val) {
-      if(val == '0') {
+    editLength (val) {
+      if (val == '0') {
         console.log('dd')
       }
     },
-    editemojiShow(val) {
-      if(!val) {
-        if(this.quill) {
+    editemojiShow (val) {
+      if (!val) {
+        if (this.quill) {
           this.quill.focus()
         }
       }
     }
   },
   methods: {
-    eventClose() {
-      this.editValue = "";
-      this.isQuestion = false;
-      this.$emit('setEditShow', false);
-      this.$emit('resetEdit');
-
+    eventClose () {
+      this.editValue = null
+      this.isQuestion = false
+      this.$emit('setEditShow', false)
+      this.$emit('resetEdit')
     },
-    resetEditDom() {
-      if(!this.editDom) {
-          this.editDom = this.$refs.quillEdit.getElementsByClassName('ql-editor')[0];
-      } else {
-          this.editDom.innerHTML = '';
-      }
-      this.$emit('setEditemojiShow', false)
-    },
-    setEditIndent() {
-      if(!this.editDom) {
-        return false;
-      }
-      if(this.editType != 'send') {
-      const width = document.getElementById('InputPlaceholder').clientWidth;
-      const htmlF = document.documentElement.getBoundingClientRect().width / 6.1;
-      console.log(width / htmlF)
-      this.editDom.style.textIndent = `${width / htmlF}rem`;
-      } else {
-        this.editDom.style.textIndent = `0em`;
-      }
-    },
-    setEmojiShow() {
-      this.$emit('setEditemojiShow', !this.editemojiShow)
-    },
-    changeText(){
-      this.innerText = this.$el.innerHTML;
-      this.$emit('input',this.innerText);
-    },
-    eventGetFours() {
-      console.log('get focus');
-      if(this.type != 'textArea') {
-        // this.quill.setSelection(this.editLength, 1);
-        this.quill.focus();
-        this.$refs.editGroup.$el.scrollIntoView(true);
+    resetEditDom () {
+      if(this.quill) {
+        if (!this.editDom) {
+          this.editDom = this.$refs.quillEdit.getElementsByClassName('ql-editor')[0]
+        } else {
+          this.editDom.innerHTML = ''
+        }
       }
       
+      this.editLength = 0;
+      this.$emit('setEditemojiShow', false)
     },
-    delText() {
+    setEditIndent () {
+      if (!this.editDom) {
+        return false
+      }
+      if (this.editType != 'send') {
+        const width = document.getElementById('InputPlaceholder').clientWidth
+        const htmlF = document.documentElement.getBoundingClientRect().width / 6.1
+        this.editDom.style.textIndent = `${width / htmlF}rem`
+      } else {
+        this.editDom.style.textIndent = `0em`
+      }
+    },
+    setEmojiShow () {
+      this.$emit('setEditemojiShow', !this.editemojiShow)
+    },
+    changeText () {
+      this.innerText = this.$el.innerHTML
+      this.$emit('input', this.innerText)
+    },
+    eventGetFours () {
+      if (this.type != 'textArea' && !this.isAndroid4) {
+        // this.quill.setSelection(this.editLength, 1);
+        this.quill.focus()
+        this.$refs.editGroup.$el.scrollIntoView(true)
+      }
+    },
+    delText () {
       const range = this.quill.getSelection()
-      let index = 0;
-      if(range) {
+      let index = 0
+      if (range) {
         index = range.index
       }
-      this.quill.deleteText(index, 1);
+      this.quill.deleteText(index, 1)
     },
-    eventChose(e) {
+    eventChose (e) {
       const range = this.quill.getSelection()
-      let index = 0;
-      if(range) {
+      let index = 0
+      if (range) {
         index = range.index
       } else {
         index = this.editLength
       }
       // range.collapse(true);
-      this.quill.insertEmbed(index, 'image', `http://imgzq.hexun.com/chatRoom/static/ff/${e}.gif`);
-      if(range) {
+      this.quill.insertEmbed(index, 'image', `http://imgzq.hexun.com/chatRoom/static/ff/${e}.gif`)
+      if (range) {
         this.quill.setSelection(index + 1, range.length)
       }
     },
-    eventShow() {
-      if(this.insetPlacehold) {
-        console.log('插入',this.placeholderShow)
-        this.quill.insertEmbed(0, 'text', this.placeholder);
+    eventShow () {
+      if (this.insetPlacehold) {
+        if(this.isAndroid4) {
+          this.editValue = this.placeholder
+        } else {
+          this.quill.insertEmbed(0, 'text', this.placeholder)
+        }
+        
+      } else {
+        // this.quill.insertEmbed(0, 'text', '_');
+        // setTimeout(() => {
+        //   this.$refs.mPlaceholder.$forceUpdate()
+        // }, 500)
       }
     },
   // 发送按钮
-    eventSend() {
+    eventSend () {
       this.$emit('sendBtnMethod', {
         isQuestion: this.isQuestion
       })
-    }
-  },
-  created() {
-    this.$on('autoFocus',() => {
-      setTimeout(() => {
-        this.quill.focus();
-      },100)
-    })
-  },
-  mounted() {
-    // console.log('dd')
-    if(this.type == 'wuEdit') {
-      this.quill = new Quill('#editor-trigger', {
-        theme: 'bubble'
-      });
-      this.quill.on('text-change', (delta, oldDelta, source) => {
-        const ops = this.quill.getContents().ops;
-        let str = '';
-        let len = 0;
-        // console.log( this.quill.getContents())
-        for(let i in ops) {
-          // console.log(typeof ops[i].insert === 'string')
-          if(typeof ops[i].insert === 'string') {
-          //  console.log('str')
-            str += ops[i].insert;
-            len += ops[i].insert.trim().length
-          } else if(typeof ops[i].insert === 'object')  {
-          str+=`[face]${ops[i].insert.image}[/face]`;
-          len++
-          }
-        }
-        if(len >= this.max) {
-          this.quill.setContents(oldDelta);
-          this.quill.setSelection(this.editLength, 1);
-        }
-        this.editValue = str;
-        this.editLength = len;
-      });
+    },
+    quillInit () {
+      if (this.type == 'wuEdit') {
+        this.quill = new Quill('#editor-trigger', {
+          theme: 'bubble'
+        })
+        this.quill.on('text-change', (delta, oldDelta, source) => {
+          // 删除1000字之外的东西
+          this.quill.deleteText(1000, 999999)
+          const content = this.quill.getContents()
+          const length = content.reduce(function (length, op) {
+            let _length = ''
+            if (typeof op.insert === 'string') {
+              _length = length + (op.insert.trim().length)
+            } else {
+              _length = length + 1
+            }
 
-      if(this.$refs.quillEdit) {
-          this.editDom = this.$refs.quillEdit.getElementsByClassName('ql-editor')[0];
-          this.resetEditDom();     
+            return _length
+          }, 0)
+          // console.log( this.quill.getContents())
+          let text = content.map(function (op) {
+            if (typeof op.insert === 'string') {
+              return op.insert
+            } else {
+              return `[face]${op.insert.image}[/face]`
+            }
+          }).join('')
+          if(this.insetPlacehold) {
+            text = text.substr(this.placeholder.length)
+          }
+          this.editValue = text
+          this.editLength = length
+          if (length > this.max) {
+            this.quill.setContents()
+          }
+        })
+
+        if (this.$refs.quillEdit) {
+          this.editDom = this.$refs.quillEdit.getElementsByClassName('ql-editor')[0]
+          this.resetEditDom()
+        }
       }
     }
-  
   },
+  created () {
+    this.$on('autoFocus', () => {
+      if (!this.isAndroid4) {
+        setTimeout(() => {
+          if (this.insetPlacehold) {
+            this.quill.setSelection(this.placeholder.length, 1)
+          }
+          this.quill.focus()
+        }, 500)
+      }
+    })
+  },
+  mounted () {
+    // console.log('dd')
+    if (!this.isAndroid4) {
+      this.quillInit()
+    }
+  }
 }
 </script>
 <style lang="less">
@@ -438,11 +465,20 @@ export default {
     position: absolute;
     top: .333333rem; // 25px
     left: .533333rem;
-    pointer-events: none;
     z-index: 9999;
+    width: 100%;
+    display: block;
+    cursor: pointer;
+	  text-align: left;
+    // pointer-events:none
   }
   .emoji-container {
+    .emoji-container-warp {
+      display: flex;
+      flex-wrap: warp;
+    }
     .emoji-list{
+      width: .586667rem;
       display: flex;
       justify-content: center;
       align-item: 'center';
@@ -466,8 +502,5 @@ export default {
 .e-t-g-t-c-edit-other {
   .ql-editor {
   }
- 
 }
-
-
 </style>

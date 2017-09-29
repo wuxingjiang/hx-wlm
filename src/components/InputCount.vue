@@ -7,7 +7,7 @@
 export default {
   name: 'InputCount',
   props: ['length', 'maxLength'],
-  data() {
+  data () {
     return {
       msg: 'InputCount'
     }

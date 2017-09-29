@@ -20,8 +20,9 @@
                         r: /(\[url=(.+?)\])([\s\S)]*?)\[\/url\]/gi,
                         f: function (a, b, c) {
                             try{
-                            var t=/\](.+?)\[/i,st=a.match(t);
-                            return '<a href="' + c + '" target="_blank"  class="_ddf">'+st[1]+'</a>';
+                            var t=/\](.+?)\[/i,st=a.match(t), n = '';
+                            n = st == null ? c : st[1]
+                            return '<a href="' + c + '" target="_blank"  class="_ddf">'+ n +'</a>';
                             }catch(e){
                                 return '';
                             }

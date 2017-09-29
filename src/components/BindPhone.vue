@@ -4,7 +4,7 @@
       <x-dialog v-model="show" :dialog-style="{'padding':'0', 'box-sizing':'border-box'}">
           <header class="b-header vux-1px-b">
             验证手机
-            <svg @click="show = false" class="icon icon-guanbi" aria-hidden="true">
+            <svg @click="eventCloseDialog" class="icon icon-guanbi" aria-hidden="true">
                 <use xlink:href="#icon-guanbi"></use>
             </svg>
           </header>
@@ -13,21 +13,26 @@
             ref="inputTel"
             class="input-list vux-1px-b"
             title="" 
-            type="tel"
-            is-type="china-mobile"
+            is-type = 'funcT'
+            type="tel" 
             placeholder="请输入手机号码" 
             v-model="tel" 
-            :min="11" 
-            :max="11" ></x-input>
+            :show-clear="telShowClear"
+            @on-blur = "setTelShow"
+            @on-focus = "setTelShow"
+            >
+            </x-input>
             <x-input 
             class="input-list vux-1px-b"
             title="" 
             type="number"
             is-type="funcV"
             placeholder="请输入5位验证码" 
-            v-model="vnumber" 
-            :min="5" 
-            :max="5" >
+            v-model="vnumber"
+            :show-clear="codeShowClear"
+            @on-blur = "setCodeShow"
+            @on-focus = "setCodeShow"
+            >
               <x-button 
               :class="['input-btn', vbtnStatus?'btn-red':'btn-gray']" 
               :disabled="!vbtnStatus"
@@ -40,7 +45,7 @@
             </x-input>
           </section>
           <footer class="b-footer">
-            <p class="b-f-errMsg">{{errMsg}}</p>
+            <p v-if="errMsg" class="b-f-errMsg">{{errMsg}}</p>
             <x-button 
               :class="['submit-btn',  sbtnStatus?'btn-red':'btn-gray']" 
               slot="right" 
@@ -49,7 +54,7 @@
               type="primary" 
               @click.native="eventBindPhone"
               >确认</x-button>
-            </x-input>
+            <!--</x-input>-->
           </footer>
       </x-dialog>
     </div>
@@ -63,7 +68,7 @@
     XButton,
     XInput,
     Icon
-  } from 'vux';
+  } from 'vux'
   export default {
     name: 'BindPhone',
     components: {
@@ -71,13 +76,13 @@
       TransferDom,
       XButton,
       XInput,
-      Icon 
+      Icon
     },
-    props: ['isWechat'],
+    props: ['isWechat', 'roomId', 'dplusInfo'],
     directives: {
       TransferDom
     },
-    data() {
+    data () {
       return {
         show: true,
         tel: '',
@@ -86,34 +91,47 @@
         sbtnStatus: false,
         sendMsg: false,
         vBtnText: '获取验证码',
+        telShowClear: false,
+        codeShowClear: false,
         errMsg: ''
       }
     },
     computed: {
-      nowDate() {
-        const date = new Date();
-        return this.format(date.getTime(), 'yyyyMMdd');
+      nowDate () {
+        const date = new Date()
+        return this.format(date.getTime(), 'yyyyMMdd')
       }
     },
     watch: {
-      tel() {
-        this.setVbtnStatus();
+      tel () {
+        this.setVbtnStatus()
       },
-      vnumber() {
-        this.sbtnStatus = this.funcV() && this.sendMsg;
+      vnumber () {
+        this.sbtnStatus = this.funcV() && this.sendMsg
       }
     },
     methods: {
-      funcV() {
-        const vn = this.vnumber;
-        console.log(vn.length)
+      setTelShow() {
+        // 防止点击失效
+        setTimeout(() => {
+          this.telShowClear = !this.telShowClear;
+        }, 300)
+
+      },
+      setCodeShow () {
+        setTimeout(() => {
+          this.codeShowClear = !this.codeShowClear;
+        }, 300)
+      },
+      funcV () {
+        const vn = this.vnumber
         return vn && vn.length == 5
       },
-      setVbtnStatus() {
-       this.vbtnStatus = this.$refs.inputTel && this.$refs.inputTel.valid && !!this.tel;
+      setVbtnStatus () {
+        this.vbtnStatus = this.$refs.inputTel && this.$refs.inputTel.valid && !!this.tel
       },
-      format(timestamp, format = 'yyyy-MM-dd hh:mm') {
-        const time = new Date(timestamp);
+      format (timestamp, format = 'yyyy-MM-dd hh:mm') {
+        const time = new Date(timestamp)
         let date = {
           "M+": time.getMonth() + 1,
           "d+": time.getDate(),
@@ -122,85 +140,119 @@
           "s+": time.getSeconds(),
           "q+": Math.floor((time.getMonth() + 3) / 3),
           "S+": time.getMilliseconds()
-        };
+        }
         if (/(y+)/i.test(format)) {
-          format = format.replace(RegExp.$1, (time.getFullYear() + '').substr(4 - RegExp.$1.length));
+          format = format.replace(RegExp.$1, (time.getFullYear() + '').substr(4 - RegExp.$1.length))
         }
         for (let k in date) {
           if (new RegExp("(" + k + ")").test(format)) {
             format = format.replace(RegExp.$1, RegExp.$1.length == 1
-              ? date[k] : ("00" + date[k]).substr(("" + date[k]).length));
+              ? date[k] : ("00" + date[k]).substr(("" + date[k]).length))
           }
         }
-        return format;
+        return format
       },
-      eventGetMsg() {
+      eventGetMsg () {
         let params = {
           act: 'sendsms',
           mobile: this.tel,
           client: 'peixun',
-          verifyCode: MD5(`peixun${this.nowDate}469810e448404a7659ef9176b6c16e28`),
+          verifyCode: MD5(`peixun${this.nowDate}469810e448404a7659ef9176b6c16e28`)
         }
         // 如果在微信
-        if(this.isWechat) {
+        if (this.isWechat) {
           params = {
             act: 'wxsendsms',
             mobile: this.tel,
             client: 'weixin2017',
-            verifyCode: MD5(`weixin2017${this.nowDate}e33a9f3c23707cbe5b62a3ce8c2d059a${this.tel}`),
+            verifyCode: MD5(`weixin2017${this.nowDate}e33a9f3c23707cbe5b62a3ce8c2d059a${this.tel}`)
           }
         }
+
         this.$Fetch("regTool", params, (res) => {
-          if(res.body.code == 1) {
-            this.sendMsg = true;
-            this.vbtnStatus = false;
-            let time = 60;
+          if (res.body.code == 1) {
+            this.sendMsg = true
+            this.vbtnStatus = false
+            let time = 60
             const countDown = () => {
-              if(time <= 0) {
-                this.vBtnText = `获取验证码`;
-                this.setVbtnStatus();
-                return false;
+              if (time <= 0) {
+                this.vBtnText = `获取验证码`
+                this.setVbtnStatus()
+                return false
               }
               setTimeout(() => {
-                time--;
+                time--
                 this.vBtnText = `${time}秒`
                 countDown()
-              }, 1000);
-              
+              }, 1000)
             }
+            this.errMsg = ''
             countDown()
           } else {
             this.errMsg = res.body.msg
           }
         }, this, false)
+
+        dplus_Click("点击事件", {
+          "事件功能": "发送验证码",
+          "类型": "互动",
+          "所属平台": "微信工作室",
+          "产品ID": this.roomId,
+          "产品名称": this.dplusInfo.rName,
+          "合作者ID": this.dplusInfo.pId,
+          "合作者名称": this.dplusInfo.pName,
+          "产品分类": "文字直播",
+          "价格区间": "10元以下",
+          "事件类别": "体验",
+          "PLATFORM": "WEIXIN"
+        })
       },
-      eventBindPhone() {
-        let params ={
+      eventBindPhone () {
+        let params = {
           act: 'bind',
           mobile: this.tel,
           code: this.vnumber,
           client: 'peixun',
-          verifyCode: MD5(`peixun${this.nowDate}469810e448404a7659ef9176b6c16e28`),
+          verifyCode: MD5(`peixun${this.nowDate}469810e448404a7659ef9176b6c16e28`)
         }
 
         // 如果在微信
-        if(this.isWechat) {
+        if (this.isWechat) {
           params = {
             act: 'wxbindauthorize',
             mobile: this.tel,
             code: this.vnumber,
             client: 'weixin2017',
-            verifyCode: MD5(`weixin2017${this.nowDate}e33a9f3c23707cbe5b62a3ce8c2d059a${this.tel}`),
+            verifyCode: MD5(`weixin2017${this.nowDate}e33a9f3c23707cbe5b62a3ce8c2d059a${this.tel}`)
           }
         }
         this.$Fetch("regTool", params, (res) => {
-          if(res.body.code == 1) {
+          if (res.body.code == 1) {
             this.$emit("bindSuccess", this.tel)
           } else {
             this.errMsg = res.body.msg
           }
-          
         }, this, false)
+
+        dplus_Click("点击事件", {
+          "事件功能": "绑定手机号",
+          "类型": "互动",
+          "所属平台": "微信工作室",
+          "产品ID": this.roomId,
+          "产品名称": this.dplusInfo.rName,
+          "合作者ID": this.dplusInfo.pId,
+          "合作者名称": this.dplusInfo.pName,
+          "产品分类": "文字直播",
+          "价格区间": "10元以下",
+          "事件类别": "体验",
+          "PLATFORM": "WEIXIN"
+        })
+      },
+      eventCloseDialog () {
+        this.$emit('closeBindPhone')
+      },
+      funcT () {
+        return true
       }
     }
   }
@@ -220,6 +272,14 @@
       normalize.css 中也包含这行 */
   overflow: hidden;
 }
+  .weui-cell:before {
+    border: none !important;
+  }
+  [class^="weui-icon-"]:before, [class*=" weui-icon-"]:before  {
+    margin-right: .3rem;
+    font-size: 1.5em;
+  }
+  
   .icon-guanbi {
    position: absolute;
    right: .4rem;
@@ -240,6 +300,7 @@
   .input-btn {
     border: none;
     color: #fff;
+    min-width: 2.533333rem;
     height:1.333333rem;
     border-radius: 0;
     &:active {

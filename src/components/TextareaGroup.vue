@@ -1,7 +1,8 @@
 <template>
-  <div id="TextareaGroup" class="TextareaGroup">
+  <div class="edit-theme">
     <div v-transfer-dom>
-      <popup 
+      <popup
+      class="edit-theme"
       v-model="selfEditShow"
       @on-hide="eventClose"
       >
@@ -9,6 +10,7 @@
           <div class="edit-theme-group-textarea">
             <div  class="e-t-g-t-con" >
               <x-textarea 
+              ref="js_textArea"
               v-if="type === 'textArea'"
               :height="100"
               :show-counter="false"
@@ -51,15 +53,15 @@
 import InputCount from '@/components/InputCount.vue'
 import InputPlaceholder from '@/components/InputPlaceholder.vue'
 import CheckIcon from '@/components/CheckIcon.vue'
-import { 
+import {
   Group,
   XButton,
   Popup,
   TransferDom,
-  XTextarea ,
+  XTextarea,
   Divider,
   Flexbox,
-  FlexboxItem,
+  FlexboxItem
   } from 'vux'
 
 export default {
@@ -67,8 +69,7 @@ export default {
   directives: {
     TransferDom
   },
-  props:['max', 'editShow', 'value', 'title', 'type', 'placeholder', 'editType', 'identity', 'authority','editemojiShow'],
-
+  props: ['max', 'editShow', 'value', 'title', 'type', 'placeholder', 'editType', 'identity', 'authority', 'editemojiShow'],
   components: {
     Group,
     XButton,
@@ -79,74 +80,82 @@ export default {
     FlexboxItem,
     CheckIcon,
     'input-count': InputCount,
-    'input-placeholder':InputPlaceholder,
+    'input-placeholder': InputPlaceholder
   },
-  data() {
+  data () {
     return {
       msg: 'TextAreaGroup',
-      editLength:'',
+      editLength: '',
       editValue: this.value,
       needDel: '', // emoji是否需要删除
       editDom: '',
-      isQuestion: false,
+      isQuestion: false
     }
   },
   computed: {
-    placeholderShow() {
+    placeholderShow () {
       const arr = ['wuEdit', 'textArea']
 
-      return !this.editLength && arr.indexOf(this.type) != -1;
+      return !this.editLength && arr.indexOf(this.type) != -1
     },
-    insetPlacehold() {
-       const arr = ['send']
+    insetPlacehold () {
+      const arr = ['send']
 
-      return  arr.indexOf(this.editType) == -1;
+      return arr.indexOf(this.editType) == -1
     },
-    issend() {
-      return !!this.editValue.trim();
+    issend () {
+      return !!this.editValue.trim()
     },
-    selfEditShow() {
-      return this.editShow;
+    selfEditShow () {
+      return this.editShow
     },
-    disabled() {
-      return !this.editLength;
-    },
+    disabled () {
+      return !this.editLength
+    }
   },
   watch: {
-    editValue(val, oldVal) {
-      const len = val.length;
-      if(this.type === 'textArea') {
-        this.editLength = len;
+    value (val) {
+      this.editValue = val
+    },
+    editValue (val, oldVal) {
+      const len = val.length
+      if (this.type === 'textArea') {
+        this.editLength = len
       }
       this.$emit('input', val)
-    },
+    }
   },
   methods: {
-    eventClose() {
-      this.editValue = "";
-      this.isQuestion = false;
-      this.$emit('setEditShow', false);
-      this.$emit('resetEdit');
-
+    eventClose () {
+      // this.editValue = "";
+      this.isQuestion = false
+      this.$emit('setEditShow', false)
+      this.$emit('resetEdit')
     },
-    
-  // 发送按钮
-    eventSend() {
+    // 发送按钮
+    eventSend () {
       this.$emit('sendBtnMethod', {
         isQuestion: this.isQuestion
       })
     }
   },
-  created() {
-    
-  },
-  mounted() {
-    // console.log('dd'
-  },
+  created () {
+    this.$on('autoFocus', () => {
+      setTimeout(() => {
+        const node = this.$refs.js_textArea.$el.getElementsByTagName('textarea')[0]
+        const autofocus = node.getAttribute('autofoces')
+        if (!autofocus) {
+          node.focus()
+          node.setAttribute('autofocus', 'autofocus')
+        }
+      }, 600)
+    })
+  }
 }
 </script>
 <style lang="less">
-.edit-theme-group {
+.edit-theme {
+  .edit-theme-group {
   text-align: center;
 
   .weui-cells:before {
@@ -265,6 +274,8 @@ export default {
   }
  
 }
+}
+
 
 
 </style>

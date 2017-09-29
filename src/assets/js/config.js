@@ -4,12 +4,14 @@ console.log(window.location.hostname);
 const createconfig = () => {
   let host = {
     apiHost: 'http://api.zhibo.hexun.com/',
+    orderHost: 'https://order.hexun.com',
     mqttProt: 89,
   };
   if(env === 'development') { // 本地开发环境
       console.log('本地开发环境');
     host = {
         apiHost: 'http://test.api.zhibo.hexun.com/',
+        orderHost: 'http://test-order.hexun.com',
         mqttProt: 90,
     }
   }
@@ -17,6 +19,7 @@ const createconfig = () => {
     console.log('测试环境');
     host = {
         apiHost: 'http://test.api.zhibo.hexun.com/',
+        orderHost: 'http://test-order.hexun.com',
         mqttProt: 90,
     }
   }

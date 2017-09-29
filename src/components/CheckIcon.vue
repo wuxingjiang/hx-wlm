@@ -21,14 +21,14 @@ export default {
       default: 'default'
     }
   },
-  data() {
-      return {
-        subValue: this.value
-      }
+  data () {
+    return {
+      subValue: this.value
+    }
   },
   watch: {
-    subValue() {
-        this.$emit('input', this.subValue)
+    subValue () {
+      this.$emit('input', this.subValue)
     }
   }
 }

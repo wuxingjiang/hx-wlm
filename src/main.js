@@ -6,9 +6,9 @@ import router from './router'
 import App from './App'
 import VueResource from 'vue-resource'
 import Fetch from './fetch'
-import { AlertPlugin, LoadingPlugin, ToastPlugin, ConfirmPlugin  } from 'vux'
+import {AlertPlugin, LoadingPlugin, ToastPlugin, ConfirmPlugin} from 'vux'
 import VueClipboard from 'vue-clipboard2'
-
+import VueChatScroll from './chat-scroll'
 
 Vue.use(VueClipboard)
 Vue.use(ToastPlugin)
@@ -17,6 +17,7 @@ Vue.use(AlertPlugin)
 Vue.use(LoadingPlugin)
 Vue.use(ConfirmPlugin)
 Vue.use(Fetch)
+Vue.use(VueChatScroll)
 
 FastClick.attach(document.body)
 

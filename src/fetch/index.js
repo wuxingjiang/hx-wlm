@@ -1,9 +1,7 @@
 import webenv from '@/assets/js/config.js';
-
-
 const apidomain= webenv.apiHost
 const api = {
-    getRoomBaseInfo:apidomain+'api/room/get_room_info?roomId=',//获取房间信息
+    getRoomBaseInfo:apidomain+'api/room/get_room_info',//获取房间信息
     getFollowInfo:'http://follow.zq.hexun.com/relation/isattention.do',//获取是否关注
     followtearch:'http://follow.zq.hexun.com/relation/add.do',//关注老师
     getTearchInfo:'http://partner.px.hexun.com/api/partner/get_partnershow_info',//合作者信息
@@ -26,7 +24,6 @@ Fetch.install = function(Vue, options) {
   
  // 添加实例方法
   Vue.prototype.$Fetch = function (url, params, callback, vm, load = true) {
-    console.log(url)
     // 打开loading
     if(load) {
       Vue.$vux.loading.show({
@@ -36,7 +33,6 @@ Fetch.install = function(Vue, options) {
     
     Vue.http.jsonp(api[url],{params}).then(
       success => {
-        console.log('T')
         Vue.$vux.loading.hide();
         if(success.body.resultKey == 'validation_error') {     
           this.$vux.alert.show({

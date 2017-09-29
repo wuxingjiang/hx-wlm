@@ -2,10 +2,10 @@
   <div>
     <div class="vux-demo">
       <img class="logo" src="../assets/vux_logo.png">
-      <h1> nihao</h1>
+      <h1> </h1>
     </div>
     <group title="cell demo">
-      <cell title="Vux" value="Cool" is-link link="/LiveRoom"></cell>
+      <cell title="Vux" value="Cool" is-link></cell>
     </group>
   </div>
 </template>
@@ -26,9 +26,6 @@ export default {
       // its initial state.
       msg: 'Hello World!'
     }
-  },
-  created() {
-    console.log(this.$router)
   }
 }
 </script>

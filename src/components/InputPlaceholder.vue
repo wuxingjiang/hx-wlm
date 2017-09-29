@@ -11,11 +11,14 @@
 <script>
 export default {
   name: 'InputPlaceholder',
-  props:['placeholder'],
-  data() {
+  props: ['placeholder'],
+  data () {
     return {
       msg: 'InputPlaceholder'
     }
+  },
+  updated () {
+    console.log('rander')
   }
 }
 </script>

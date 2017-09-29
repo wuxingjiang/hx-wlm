@@ -1,6 +1,6 @@
 # hx-wlm
 
-> hexun live from mobile
+> A Vue.js project
 
 ## Build Setup
 
